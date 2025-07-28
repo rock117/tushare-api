@@ -9,7 +9,7 @@ use serde::{Serialize};
 use serde_json;
 use uuid::Uuid;
 
-/// 内部使用的完整请求结构体（包含 token）
+/// Internal request structure with token included
 #[derive(Debug, Serialize)]
 struct InternalTushareRequest {
     #[serde(serialize_with = "serialize_api_name")]
@@ -19,7 +19,7 @@ struct InternalTushareRequest {
     fields: Vec<String>,
 }
 
-/// Tushare API 客户端
+/// Tushare API client
 #[derive(Debug)]
 pub struct TushareClient {
     token: String,
@@ -27,7 +27,7 @@ pub struct TushareClient {
     logger: Logger,
 }
 
-/// Tushare 客户端构建器
+/// Tushare client builder
 #[derive(Debug)]
 pub struct TushareClientBuilder {
     token: Option<String>,
@@ -66,31 +66,31 @@ impl TushareClientBuilder {
         self
     }
 
-    /// 设置日志级别
+    /// Set log level
     pub fn with_log_level(mut self, level: LogLevel) -> Self {
         self.log_config.level = level;
         self
     }
 
-    /// 启用或禁用请求日志
+    /// Enable or disable request logging
     pub fn log_requests(mut self, enabled: bool) -> Self {
         self.log_config.log_requests = enabled;
         self
     }
 
-    /// 启用或禁用响应日志
+    /// Enable or disable response logging
     pub fn log_responses(mut self, enabled: bool) -> Self {
         self.log_config.log_responses = enabled;
         self
     }
 
-    /// 启用或禁用敏感数据日志
+    /// Enable or disable sensitive data logging
     pub fn log_sensitive_data(mut self, enabled: bool) -> Self {
         self.log_config.log_sensitive_data = enabled;
         self
     }
 
-    /// 启用或禁用性能指标日志
+    /// Enable or disable performance metrics logging
     pub fn log_performance(mut self, enabled: bool) -> Self {
         self.log_config.log_performance = enabled;
         self
@@ -116,20 +116,20 @@ impl TushareClientBuilder {
 }
 
 impl TushareClient {
-    /// 创建客户端构建器
+    /// Create client builder
     pub fn builder() -> TushareClientBuilder {
         TushareClientBuilder::new()
     }
 
 
 
-    /// 创建新的 Tushare 客户端（使用默认超时设置）
+    /// Create a new Tushare client with default timeout settings
     /// 
-    /// # 参数
+    /// # Arguments
     /// 
     /// * `token` - Tushare API Token
     /// 
-    /// # 示例
+    /// # Example
     /// 
     /// ```rust
     /// use tushare_api::TushareClient;
@@ -140,18 +140,18 @@ impl TushareClient {
         Self::with_timeout(token, Duration::from_secs(10), Duration::from_secs(30))
     }
 
-    /// 从环境变量 TUSHARE_TOKEN 创建新的 Tushare 客户端（使用默认超时设置）
+    /// Create a new Tushare client from TUSHARE_TOKEN environment variable with default timeout settings
     /// 
-    /// # 错误
+    /// # Errors
     /// 
-    /// 如果环境变量 TUSHARE_TOKEN 不存在或为空，返回 `TushareError::InvalidToken`
+    /// Returns `TushareError::InvalidToken` if TUSHARE_TOKEN environment variable does not exist or is empty
     /// 
-    /// # 示例
+    /// # Example
     /// 
     /// ```rust,no_run
     /// use tushare_api::{TushareClient, TushareResult};
     /// 
-    /// // 需要设置环境变量 TUSHARE_TOKEN
+    /// // Requires TUSHARE_TOKEN environment variable to be set
     /// let client = TushareClient::from_env()?;
     /// # Ok::<(), tushare_api::TushareError>(())
     /// ```
@@ -168,27 +168,27 @@ impl TushareClient {
         Ok(Self::new(&token))
     }
 
-    /// 从环境变量 TUSHARE_TOKEN 创建新的 Tushare 客户端（自定义超时设置）
+    /// Create a new Tushare client from TUSHARE_TOKEN environment variable with custom timeout settings
     /// 
-    /// # 参数
+    /// # Arguments
     /// 
-    /// * `connect_timeout` - 连接超时时间
-    /// * `timeout` - 请求超时时间
+    /// * `connect_timeout` - Connection timeout duration
+    /// * `timeout` - Request timeout duration
     /// 
-    /// # 错误
+    /// # Errors
     /// 
-    /// 如果环境变量 TUSHARE_TOKEN 不存在或为空，返回 `TushareError::InvalidToken`
+    /// Returns `TushareError::InvalidToken` if TUSHARE_TOKEN environment variable does not exist or is empty
     /// 
-    /// # 示例
+    /// # Example
     /// 
     /// ```rust,no_run
     /// use tushare_api::{TushareClient, TushareResult};
     /// use std::time::Duration;
     /// 
-    /// // 需要设置环境变量 TUSHARE_TOKEN
+    /// // Requires TUSHARE_TOKEN environment variable to be set
     /// let client = TushareClient::from_env_with_timeout(
-    ///     Duration::from_secs(5),  // 连接超时 5 秒
-    ///     Duration::from_secs(60)  // 请求超时 60 秒
+    ///     Duration::from_secs(5),  // Connection timeout 5 seconds
+    ///     Duration::from_secs(60)  // Request timeout 60 seconds
     /// )?;
     /// # Ok::<(), tushare_api::TushareError>(())
     /// ```
@@ -205,15 +205,15 @@ impl TushareClient {
         Ok(Self::with_timeout(&token, connect_timeout, timeout))
     }
 
-    /// 创建新的 Tushare 客户端（自定义超时设置）
+    /// Create a new Tushare client with custom timeout settings
     /// 
-    /// # 参数
+    /// # Arguments
     /// 
     /// * `token` - Tushare API Token
-    /// * `connect_timeout` - 连接超时时间
-    /// * `timeout` - 请求超时时间
+    /// * `connect_timeout` - Connection timeout duration
+    /// * `timeout` - Request timeout duration
     /// 
-    /// # 示例
+    /// # Example
     /// 
     /// ```rust
     /// use tushare_api::TushareClient;
@@ -221,8 +221,8 @@ impl TushareClient {
     /// 
     /// let client = TushareClient::with_timeout(
     ///     "your_token_here",
-    ///     Duration::from_secs(5),  // 连接超时 5 秒
-    ///     Duration::from_secs(60)  // 请求超时 60 秒
+    ///     Duration::from_secs(5),  // Connection timeout 5 seconds
+    ///     Duration::from_secs(60)  // Request timeout 60 seconds
     /// );
     /// ```
     pub fn with_timeout(token: &str, connect_timeout: Duration, timeout: Duration) -> Self {
@@ -239,17 +239,17 @@ impl TushareClient {
         }
     }
 
-    /// 调用 Tushare API - 支持灵活的字符串类型
+    /// Call Tushare API with flexible string types support
     /// 
-    /// # 参数
+    /// # Arguments
     /// 
-    /// * `request` - API 请求参数，支持直接使用字符串字面量
+    /// * `request` - API request parameters, supports direct use of string literals
     /// 
-    /// # 返回值
+    /// # Returns
     /// 
-    /// 返回 API 响应结果
+    /// Returns API response result
     /// 
-    /// # 示例
+    /// # Example
     /// 
     /// ```rust
     /// use tushare_api::{TushareClient, TushareRequest, Api, params, fields, request};
@@ -257,7 +257,7 @@ impl TushareClient {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = TushareClient::new("your_token_here");
     ///     
-    ///     // 现在可以直接使用字符串字面量！
+    ///     // Now you can use string literals directly!
     ///     let request = request!(Api::StockBasic, {
     ///         "list_status" => "L"
     ///     }, [
@@ -273,7 +273,7 @@ impl TushareClient {
         let request_id = Uuid::new_v4().to_string();
         let start_time = Instant::now();
         
-        // 记录API调用开始
+        // Log API call start
         self.logger.log_api_start(
             &request_id,
             &request.api_name.name(),
@@ -281,7 +281,7 @@ impl TushareClient {
             request.fields.len()
         );
         
-        // 记录详细请求信息（如果启用）
+        // Log detailed request information (if enabled)
         let token_preview_string = if self.logger.config().log_sensitive_data {
             Some(format!("token: {}***", &self.token[..self.token.len().min(8)]))
         } else {
@@ -326,7 +326,6 @@ impl TushareClient {
                 e
             })?;
         
-        // 记录原始响应内容（如果启用响应日志）
         self.logger.log_raw_response(&request_id, &response_text);
         
         let tushare_response: TushareResponse = serde_json::from_str(&response_text)
@@ -347,10 +346,10 @@ impl TushareClient {
             });
         }
 
-        // 记录成功信息和性能指标
+        // Log success information and performance metrics
         self.logger.log_api_success(&request_id, elapsed, tushare_response.data.items.len());
         
-        // 记录响应详情（如果启用）
+        // Log response details (if enabled)
         self.logger.log_response_details(
             &request_id,
             &tushare_response.request_id,

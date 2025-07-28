@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::api::{Api, serialize_api_name};
 
-/// Tushare API 请求结构体
+/// Tushare API request structure
 /// 
-/// 支持灵活的字符串类型使用，可以直接使用字符串字面量和 String 变量
+/// Supports flexible string type usage, allowing direct use of string literals and String variables
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TushareRequest {
     #[serde(serialize_with = "serialize_api_name")]
@@ -14,7 +14,7 @@ pub struct TushareRequest {
 }
 
 impl TushareRequest {
-    /// 创建新的 TushareRequest
+    /// Create a new TushareRequest
     pub fn new<K, V, F, P, Fs>(api_name: Api, params: P, fields: Fs) -> Self
     where
         K: Into<String>,
@@ -36,7 +36,7 @@ impl TushareRequest {
         }
     }
     
-    /// 从字符串字面量创建参数
+    /// Create parameters from string literals
     pub fn with_str_params<const N: usize>(api_name: Api, params: [(&str, &str); N], fields: &[&str]) -> Self {
         let params = params
             .into_iter()
@@ -51,23 +51,23 @@ impl TushareRequest {
         }
     }
     
-    /// 添加参数
+    /// Add parameter
     pub fn add_param<K: Into<String>, V: Into<String>>(mut self, key: K, value: V) -> Self {
         self.params.insert(key.into(), value.into());
         self
     }
     
-    /// 添加字段
+    /// Add field
     pub fn add_field<F: Into<String>>(mut self, field: F) -> Self {
         self.fields.push(field.into());
         self
     }
 }
 
-/// 为了向后兼容，保留类型别名
+/// Type alias retained for backward compatibility
 pub type TushareRequestString = TushareRequest;
 
-/// 创建参数 HashMap 的宏
+/// Macro for creating parameter HashMap
 #[macro_export]
 macro_rules! params {
     ($($key:expr => $value:expr),* $(,)?) => {
@@ -81,7 +81,7 @@ macro_rules! params {
     };
 }
 
-/// 创建字段 Vec 的宏
+/// Macro for creating fields Vec
 #[macro_export]
 macro_rules! fields {
     ($($field:expr),* $(,)?) => {
@@ -89,7 +89,7 @@ macro_rules! fields {
     };
 }
 
-/// 更简洁的构建器宏 - 直接创建 TushareRequest
+/// More concise builder macro - directly create TushareRequest
 #[macro_export]
 macro_rules! request {
     ($api:expr, { $($key:expr => $value:expr),* $(,)? }, [ $($field:expr),* $(,)? ]) => {
@@ -101,7 +101,7 @@ macro_rules! request {
     };
 }
 
-/// Tushare API 响应结构体
+/// Tushare API response structure
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TushareResponse {
     pub request_id: String,
@@ -110,7 +110,7 @@ pub struct TushareResponse {
     pub data: TushareData,
 }
 
-/// Tushare API 数据结构体
+/// Tushare API data structure
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TushareData {
     pub fields: Vec<String>,

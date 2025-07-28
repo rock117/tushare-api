@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Tushare API 枚举类型
+/// Tushare API enum types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Api {
     StockBasic,
@@ -20,7 +20,7 @@ impl Api {
     }
 }
 
-/// 序列化 Api 枚举为字符串
+/// Serialize Api enum to string
 pub fn serialize_api_name<S>(api: &Api, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,

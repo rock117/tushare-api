@@ -1,37 +1,37 @@
 use std::fmt;
 use std::error::Error as StdError;
 
-/// Tushare API 错误类型
+/// Tushare API error types
 #[derive(Debug)]
 pub enum TushareError {
-    /// HTTP 请求错误
+    /// HTTP request error
     HttpError(reqwest::Error),
-    /// API 响应错误（包含错误码和错误信息）
+    /// API response error (contains error code and error message)
     ApiError {
         code: i32,
         message: String,
     },
-    /// JSON 序列化/反序列化错误
+    /// JSON serialization/deserialization error
     SerializationError(serde_json::Error),
-    /// 网络超时错误
+    /// Network timeout error
     TimeoutError,
-    /// 无效的 API Token
+    /// Invalid API Token
     InvalidToken,
-    /// 其他错误
+    /// Other errors
     Other(String),
 }
 
 impl fmt::Display for TushareError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TushareError::HttpError(err) => write!(f, "HTTP 请求错误: {err}"),
+            TushareError::HttpError(err) => write!(f, "HTTP request error: {err}"),
             TushareError::ApiError { code, message } => {
-                write!(f, "API 错误 (代码: {code}): {message}")
+                write!(f, "API error (code: {code}): {message}")
             }
-            TushareError::SerializationError(err) => write!(f, "序列化错误: {err}"),
-            TushareError::TimeoutError => write!(f, "请求超时"),
-            TushareError::InvalidToken => write!(f, "无效的 API Token"),
-            TushareError::Other(msg) => write!(f, "其他错误: {msg}"),
+            TushareError::SerializationError(err) => write!(f, "Serialization error: {err}"),
+            TushareError::TimeoutError => write!(f, "Request timeout"),
+            TushareError::InvalidToken => write!(f, "Invalid API Token"),
+            TushareError::Other(msg) => write!(f, "Other error: {msg}"),
         }
     }
 }
@@ -62,5 +62,5 @@ impl From<serde_json::Error> for TushareError {
     }
 }
 
-/// Tushare API 结果类型
+/// Tushare API result type
 pub type TushareResult<T> = Result<T, TushareError>;

@@ -1,8 +1,8 @@
 //! # Tushare API Rust Library
 //! 
-//! 这是一个用于访问 Tushare API 的通用 Rust 库，提供对 Tushare 各种 API 的访问功能。
+//! This is a universal Rust library for accessing Tushare API, providing access to various Tushare APIs.
 //! 
-//! # 基本使用方法
+//! # Basic Usage
 //! 
 //! ```rust
 //! use tushare_api::{TushareClient, TushareRequest, Api, params, fields};
@@ -10,7 +10,7 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     let client = TushareClient::new("your_token_here");
 //!     
-//!     // 现在可以直接使用字符串字面量！
+//!     // Now you can use string literals directly!
 //!     let req = TushareRequest {
 //!         api_name: Api::StockBasic,
 //!         params: params!("list_status" => "L"),
@@ -23,22 +23,22 @@
 //! # }
 //! ```
 
-// 模块定义
+// Module definitions
 mod error;
 mod api;
 mod types;
 mod client;
 mod logging;
 
-// 公开导出
+// Public exports
 pub use error::{TushareError, TushareResult};
 pub use api::Api;
 pub use types::{TushareRequest, TushareRequestString, TushareResponse, TushareData};
 pub use client::{TushareClient, TushareClientBuilder};
 pub use logging::{LogLevel, LogConfig, Logger};
 
-// 宏通过 #[macro_export] 已经在 crate 根部可用
-// 无需重新导出
+// Macros are already available at crate root via #[macro_export]
+// No need to re-export
 
 #[cfg(test)]
 mod tests {
@@ -48,15 +48,15 @@ mod tests {
     #[test]
     fn test_client_creation() {
         let client = TushareClient::new("test_token");
-        // 注意：由于 token 字段是私有的，我们只能测试客户端创建是否成功
-        // 这里只是验证不会 panic
+        // Note: Since the token field is private, we can only test if client creation succeeds
+        // This just verifies it doesn't panic
     }
 
     #[test]
     fn test_request_creation() {
         let _client = TushareClient::new("test_token");
         
-        // 使用新的简化方式
+        // Using the new simplified approach
         let request = TushareRequest {
             api_name: Api::StockBasic,
             params: params!("test_param" => "test_value"),
@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn test_request_macro() {
-        // 测试 request! 宏的基本功能
+        // Test basic functionality of request! macro
         let request = request!(Api::StockBasic, {
             "list_status" => "L",
             "exchange" => "SSE"
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_request_macro_empty() {
-        // 测试 request! 宏处理空参数和字段
+        // Test request! macro handling empty params and fields
         let request = request!(Api::FundBasic, {}, []);
         
         assert_eq!(request.api_name, Api::FundBasic);
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_request_macro_single_items() {
-        // 测试 request! 宏处理单个参数和字段
+        // Test request! macro handling single param and field
         let request = request!(Api::Custom("test_api".to_string()), {
             "param1" => "value1"
         }, [

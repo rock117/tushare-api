@@ -3,37 +3,37 @@
 // 运行方式：
 // cargo run --example tracing_example --features tracing
 
-use tushare_api::{TushareClient, LogLevel, Api, TushareRequest};
-use std::time::Duration;
+use tushare_api::{TushareClient, TushareRequest, Api, LogLevel, LogConfig};
 use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 方案 1: 如果用户使用 tracing，但库编译时没有启用 tracing 特性
-    // 需要使用 tracing-log 桥接
-    #[cfg(not(feature = "tracing"))]
+    println!("=== Tushare API Tracing Integration Example ===");
+    
+    // Method 1: Using tracing-log bridge (recommended for mixed ecosystems)
+    #[cfg(all(feature = "tracing", feature = "tracing-log"))] 
     {
+        println!("\n--- Method 1: Using tracing-log bridge ---");
         use tracing_subscriber;
         use tracing_log::LogTracer;
         
-        println!("=== 使用 tracing-log 桥接方案 ===");
-        println!("库使用 log，用户程序使用 tracing + tracing-log 桥接\n");
+        // Initialize log-to-tracing bridge
+        LogTracer::init()?;
         
-        // 初始化 log -> tracing 桥接
-        LogTracer::init().expect("Failed to set logger");
-        
-        // 初始化 tracing subscriber
+        // Set up tracing subscriber
         tracing_subscriber::fmt()
+            .with_env_filter("debug")
+            .with_target(false)
+            .with_thread_ids(true)
+            .with_level(true)
             .with_max_level(tracing::Level::DEBUG)
             .init();
     }
     
-    // 方案 2: 如果库编译时启用了 tracing 特性
+    // Method 2: Using native tracing feature (when library is compiled with tracing feature)
     #[cfg(feature = "tracing")]
     {
-        use tracing_subscriber;
-        
-        println!("=== 使用原生 tracing 方案 ===");
+        println!("\n--- Method 2: Using native tracing feature ---");
         println!("库和用户程序都使用 tracing\n");
         
         // 直接初始化 tracing subscriber
@@ -73,6 +73,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => {
             println!("❌ API 调用失败（预期行为）: {}", e);
         }
+    }
+
+    #[cfg(not(feature = "tracing"))]
+    {
+        println!("\n--- Tracing feature not enabled ---");
+        println!("To enable tracing support, compile with: cargo build --features tracing");
+        println!("Or add tracing-log bridge support with: cargo build --features tracing-log");
     }
 
     println!("\n=== 总结 ===");
