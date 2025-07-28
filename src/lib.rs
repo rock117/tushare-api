@@ -66,6 +66,52 @@ mod tests {
     }
 
     #[test]
+    fn test_request_macro() {
+        // 测试 request! 宏的基本功能
+        let request = request!(Api::StockBasic, {
+            "list_status" => "L",
+            "exchange" => "SSE"
+        }, [
+            "ts_code", "name", "industry"
+        ]);
+        
+        assert_eq!(request.api_name, Api::StockBasic);
+        assert_eq!(request.params.len(), 2);
+        assert_eq!(request.params.get("list_status"), Some(&"L".to_string()));
+        assert_eq!(request.params.get("exchange"), Some(&"SSE".to_string()));
+        assert_eq!(request.fields.len(), 3);
+        assert_eq!(request.fields[0], "ts_code");
+        assert_eq!(request.fields[1], "name");
+        assert_eq!(request.fields[2], "industry");
+    }
+
+    #[test]
+    fn test_request_macro_empty() {
+        // 测试 request! 宏处理空参数和字段
+        let request = request!(Api::FundBasic, {}, []);
+        
+        assert_eq!(request.api_name, Api::FundBasic);
+        assert_eq!(request.params.len(), 0);
+        assert_eq!(request.fields.len(), 0);
+    }
+
+    #[test]
+    fn test_request_macro_single_items() {
+        // 测试 request! 宏处理单个参数和字段
+        let request = request!(Api::Custom("test_api".to_string()), {
+            "param1" => "value1"
+        }, [
+            "field1"
+        ]);
+        
+        assert_eq!(request.api_name, Api::Custom("test_api".to_string()));
+        assert_eq!(request.params.len(), 1);
+        assert_eq!(request.params.get("param1"), Some(&"value1".to_string()));
+        assert_eq!(request.fields.len(), 1);
+        assert_eq!(request.fields[0], "field1");
+    }
+
+    #[test]
     fn test_api_name() {
         assert_eq!(Api::StockBasic.name(), "stock_basic");
         assert_eq!(Api::FundBasic.name(), "fund_basic");
