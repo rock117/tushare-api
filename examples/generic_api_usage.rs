@@ -1,9 +1,9 @@
-use tushare_api::{TushareClient, TushareRequest};
+use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
 use std::collections::HashMap;
 use std::env;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> TushareResult<()> {
     // 从环境变量获取 Tushare token
     let token = env::var("TUSHARE_TOKEN")
         .expect("请设置环境变量 TUSHARE_TOKEN");
@@ -19,8 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // 创建请求结构体
     let request = TushareRequest {
-        api_name: "stock_basic".to_string(),
-        token: token.clone(),
+        api_name: Api::StockBasic,
         params,
         fields: vec![
             "ts_code".to_string(),
@@ -28,6 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "name".to_string(),
             "area".to_string(),
             "industry".to_string(),
+            "list_date".to_string(),
         ],
     };
     
@@ -53,8 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     params.insert("ts_code".to_string(), "000001.SZ".to_string());
     
     let request = TushareRequest {
-        api_name: "stock_basic".to_string(),
-        token: token.clone(),
+        api_name: Api::StockBasic,
         params,
         fields: vec![
             "ts_code".to_string(),

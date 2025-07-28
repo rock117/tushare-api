@@ -8,60 +8,155 @@
 
 - 获取所有上市状态的 A 股股票信息
 - 显示股票代码、简称、公司名称、地区、行业、市场和上市日期
-- 异步处理，高效的网络请求
-- 错误处理和用户友好的提示信息
 
 ## 前置要求
 
 1. **Rust 环境**: 确保已安装 Rust (推荐使用 rustup)
 2. **Tushare API Token**: 需要在 [Tushare官网](https://tushare.pro/) 注册并获取 API Token
 
-## 安装和使用
+## 安装
 
-### 1. 作为依赖添加到您的项目
-
-在您的 `Cargo.toml` 文件中添加：
+在你的 `Cargo.toml` 中添加以下依赖：
 
 ```toml
 [dependencies]
-tushare-api = { path = "path/to/tushare-api" }
-# 或者如果发布到 crates.io:
-# tushare-api = "0.1.0"
+tushare-api = "0.1.0"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
-### 2. 基本使用示例
+## 使用方法
+
+### 环境变量设置
+
+首先，你需要设置 Tushare API Token 环境变量：
+
+```bash
+# Windows
+set TUSHARE_TOKEN=your_token_here
+
+# Linux/Mac
+export TUSHARE_TOKEN=your_token_here
+```
+
+### 基本使用
+
+#### 方式一：直接传入 Token
 
 ```rust
-use tushare_api::TushareClient;
-use std::time::Duration;
+use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
+use std::collections::HashMap;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 创建客户端（使用默认超时设置）
-    let client = TushareClient::new("your_token_here");
+async fn main() -> TushareResult<()> {
+    // 创建客户端
+    let client = TushareClient::new("your_tushare_token_here");
     
-    // 或者创建带自定义超时设置的客户端
-    let client = TushareClient::with_timeout(
-        "your_token_here",
-        Duration::from_secs(5),  // 连接超时 5 秒
-        Duration::from_secs(60)  // 请求超时 60 秒
-    );
+    // 创建请求
+    let mut params = HashMap::new();
+    params.insert("list_status".to_string(), "L".to_string());
     
-    // 获取股票列表
-    let stocks = client.get_stock_list().await?;
-    println!("获取到 {} 只股票", stocks.len());
+    let request = TushareRequest {
+        api_name: Api::StockBasic,
+        params,
+        fields: vec!["ts_code".to_string(), "name".to_string()],
+    };
     
-    // 获取特定股票信息
-    if let Some(stock) = client.get_stock_by_code("000001.SZ").await? {
-        println!("股票: {} - {}", stock.ts_code, stock.name);
-    }
+    // 调用 API
+    let response = client.call_api(request).await?;
+    println!("获取到 {} 条记录", response.data.items.len());
     
     Ok(())
 }
 ```
 
-### 3. 运行示例
+#### 方式二：使用环境变量（推荐）
+
+首先设置环境变量：
+```bash
+# Windows
+set TUSHARE_TOKEN=your_tushare_token_here
+
+# Linux/macOS
+export TUSHARE_TOKEN=your_tushare_token_here
+```
+
+然后在代码中使用：
+```rust
+use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
+use std::collections::HashMap;
+
+#[tokio::main]
+async fn main() -> TushareResult<()> {
+    // 从环境变量创建客户端
+    let client = TushareClient::from_env()?;
+    
+    // 创建请求
+    let mut params = HashMap::new();
+    params.insert("list_status".to_string(), "L".to_string());
+    
+    let request = TushareRequest {
+        api_name: Api::StockBasic,
+        params,
+        fields: vec!["ts_code".to_string(), "name".to_string()],
+    };
+    
+    // 调用 API
+    let response = client.call_api(request).await?;
+    println!("获取到 {} 条记录", response.data.items.len());
+    
+    Ok(())
+}
+```
+
+### 客户端创建方法
+
+本库提供多种创建客户端的方式：
+
+#### 1. 使用默认超时设置
+
+```rust
+// 直接传入 token
+let client = TushareClient::new("your_token_here");
+
+// 从环境变量获取 token
+let client = TushareClient::from_env()?;
+```
+
+#### 2. 自定义超时设置
+
+```rust
+use std::time::Duration;
+
+// 直接传入 token 和超时设置
+let client = TushareClient::with_timeout(
+    "your_token_here",
+    Duration::from_secs(5),  // 连接超时 5 秒
+    Duration::from_secs(60)  // 请求超时 60 秒
+);
+
+// 从环境变量获取 token 和自定义超时设置
+let client = TushareClient::from_env_with_timeout(
+    Duration::from_secs(5),  // 连接超时 5 秒
+    Duration::from_secs(60)  // 请求超时 60 秒
+)?;
+```
+
+> **推荐使用环境变量方式**：这样可以避免在代码中硬编码 API Token，提高安全性。
+
+### 自定义超时设置
+
+```rust
+use tushare_api::TushareClient;
+use std::time::Duration;
+
+let client = TushareClient::with_timeout(
+    "your_token_here",
+    Duration::from_secs(5),  // 连接超时 5 秒
+    Duration::from_secs(60)  // 请求超时 60 秒
+);
+```
+
+## 运行示例
 
 项目包含一个完整的使用示例，您可以这样运行：
 
