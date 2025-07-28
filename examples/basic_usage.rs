@@ -1,4 +1,5 @@
-use tushare_api::{TushareClient, Stock};
+use tushare_api::TushareClient;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -16,8 +17,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    // 创建客户端
+    // 创建客户端（使用默认超时设置）
     let client = TushareClient::new(&token);
+    
+    // 或者创建带自定义超时设置的客户端
+    // let client = TushareClient::with_timeout(
+    //     &token,
+    //     Duration::from_secs(5),  // 连接超时 5 秒
+    //     Duration::from_secs(60)  // 请求超时 60 秒
+    // );
 
     println!("正在获取A股股票列表...");
     

@@ -33,12 +33,20 @@ tokio = { version = "1.0", features = ["full"] }
 ### 2. 基本使用示例
 
 ```rust
-use tushare_api::{TushareClient, Stock};
+use tushare_api::TushareClient;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 创建客户端
+    // 创建客户端（使用默认超时设置）
     let client = TushareClient::new("your_token_here");
+    
+    // 或者创建带自定义超时设置的客户端
+    let client = TushareClient::with_timeout(
+        "your_token_here",
+        Duration::from_secs(5),  // 连接超时 5 秒
+        Duration::from_secs(60)  // 请求超时 60 秒
+    );
     
     // 获取股票列表
     let stocks = client.get_stock_list().await?;
@@ -89,7 +97,8 @@ cargo run --example basic_usage
 
 #### 方法
 
-- `new(token: &str) -> Self`: 创建新的客户端实例
+- `new(token: &str) -> Self`: 创建新的客户端实例（使用默认超时设置：连接超时 10 秒，请求超时 30 秒）
+- `with_timeout(token: &str, connect_timeout: Duration, timeout: Duration) -> Self`: 创建带自定义超时设置的客户端实例
 - `get_stock_list() -> Result<Vec<Stock>, Box<dyn std::error::Error>>`: 获取所有上市状态的 A 股股票列表
 - `get_stock_by_code(ts_code: &str) -> Result<Option<Stock>, Box<dyn std::error::Error>>`: 根据股票代码获取特定股票信息
 

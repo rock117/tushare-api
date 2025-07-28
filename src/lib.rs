@@ -23,30 +23,31 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::time::Duration;
 
 /// Tushare API 请求结构体
 #[derive(Debug, Serialize, Deserialize)]
-struct TushareRequest {
-    api_name: String,
-    token: String,
-    params: HashMap<String, String>,
-    fields: String,
+pub struct TushareRequest {
+    pub api_name: String,
+    pub token: String,
+    pub params: HashMap<String, String>,
+    pub fields: Vec<String>,
 }
 
 /// Tushare API 响应结构体
 #[derive(Debug, Deserialize)]
-struct TushareResponse {
-    request_id: String,
-    code: i32,
-    msg: Option<String>,
-    data: TushareData,
+pub struct TushareResponse {
+    pub request_id: String,
+    pub code: i32,
+    pub msg: Option<String>,
+    pub data: TushareData,
 }
 
 /// Tushare API 数据结构体
 #[derive(Debug, Deserialize)]
-struct TushareData {
-    fields: Vec<String>,
-    items: Vec<Vec<serde_json::Value>>,
+pub struct TushareData {
+    pub fields: Vec<String>,
+    pub items: Vec<Vec<serde_json::Value>>,
 }
 
 /// 股票信息结构体
@@ -107,7 +108,7 @@ pub struct TushareClient {
 }
 
 impl TushareClient {
-    /// 创建新的 Tushare 客户端
+    /// 创建新的 Tushare 客户端（使用默认超时设置）
     /// 
     /// # 参数
     /// 
@@ -121,10 +122,91 @@ impl TushareClient {
     /// let client = TushareClient::new("your_token_here");
     /// ```
     pub fn new(token: &str) -> Self {
+        Self::with_timeout(token, Duration::from_secs(10), Duration::from_secs(30))
+    }
+
+    /// 创建新的 Tushare 客户端（自定义超时设置）
+    /// 
+    /// # 参数
+    /// 
+    /// * `token` - Tushare API Token
+    /// * `connect_timeout` - 连接超时时间
+    /// * `timeout` - 请求超时时间
+    /// 
+    /// # 示例
+    /// 
+    /// ```rust
+    /// use tushare_api::TushareClient;
+    /// use std::time::Duration;
+    /// 
+    /// let client = TushareClient::with_timeout(
+    ///     "your_token_here",
+    ///     Duration::from_secs(5),  // 连接超时 5 秒
+    ///     Duration::from_secs(60)  // 请求超时 60 秒
+    /// );
+    /// ```
+    pub fn with_timeout(token: &str, connect_timeout: Duration, timeout: Duration) -> Self {
+        let client = Client::builder()
+            .connect_timeout(connect_timeout)
+            .timeout(timeout)
+            .build()
+            .expect("Failed to create HTTP client");
+
         Self {
             token: token.to_string(),
-            client: Client::new(),
+            client,
         }
+    }
+
+    /// 通用的 Tushare API 调用方法
+    /// 
+    /// # 参数
+    /// 
+    /// * `request` - Tushare API 请求结构体
+    /// 
+    /// # 返回值
+    /// 
+    /// 返回 `Result<TushareResponse, Box<dyn std::error::Error>>`
+    /// 
+    /// # 示例
+    /// 
+    /// ```rust,no_run
+    /// use tushare_api::{TushareClient, TushareRequest};
+    /// use std::collections::HashMap;
+    /// 
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = TushareClient::new("your_token_here");
+    ///     
+    ///     let mut params = HashMap::new();
+    ///     params.insert("list_status".to_string(), "L".to_string());
+    ///     
+    ///     let request = TushareRequest {
+    ///         api_name: "stock_basic".to_string(),
+    ///         token: "your_token_here".to_string(),
+    ///         params,
+    ///         fields: vec!["ts_code".to_string(), "name".to_string()],
+    ///     };
+    ///     
+    ///     let response = client.call_api(request).await?;
+    ///     println!("API 调用成功，返回 {} 条记录", response.data.items.len());
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn call_api(&self, request: TushareRequest) -> Result<TushareResponse, Box<dyn std::error::Error>> {
+        let response = self.client
+            .post("http://api.tushare.pro")
+            .json(&request)
+            .send()
+            .await?;
+
+        let tushare_response: TushareResponse = response.json().await?;
+        
+        if tushare_response.code != 0 {
+            return Err(format!("API错误: {}", tushare_response.msg.as_ref().unwrap_or(&"未知错误".to_string())).into());
+        }
+
+        Ok(tushare_response)
     }
 
     /// 获取 A 股股票列表
@@ -154,20 +236,18 @@ impl TushareClient {
             api_name: "stock_basic".to_string(),
             token: self.token.clone(),
             params,
-            fields: "ts_code,symbol,name,area,industry,market,list_date".to_string(),
+            fields: vec![
+                "ts_code".to_string(),
+                "symbol".to_string(), 
+                "name".to_string(),
+                "area".to_string(),
+                "industry".to_string(),
+                "market".to_string(),
+                "list_date".to_string(),
+            ],
         };
 
-        let response = self.client
-            .post("http://api.tushare.pro")
-            .json(&request)
-            .send()
-            .await?;
-
-        let tushare_response: TushareResponse = response.json().await?;
-        
-        if tushare_response.code != 0 {
-            return Err(format!("API错误: {}", tushare_response.msg.unwrap_or("未知错误".to_string())).into());
-        }
+        let tushare_response = self.call_api(request).await?;
 
         let mut stocks = Vec::new();
         for item in &tushare_response.data.items {
@@ -196,20 +276,18 @@ impl TushareClient {
             api_name: "stock_basic".to_string(),
             token: self.token.clone(),
             params,
-            fields: "ts_code,symbol,name,area,industry,market,list_date".to_string(),
+            fields: vec![
+                "ts_code".to_string(),
+                "symbol".to_string(), 
+                "name".to_string(),
+                "area".to_string(),
+                "industry".to_string(),
+                "market".to_string(),
+                "list_date".to_string(),
+            ],
         };
 
-        let response = self.client
-            .post("http://api.tushare.pro")
-            .json(&request)
-            .send()
-            .await?;
-
-        let tushare_response: TushareResponse = response.json().await?;
-        
-        if tushare_response.code != 0 {
-            return Err(format!("API错误: {}", tushare_response.msg.unwrap_or("未知错误".to_string())).into());
-        }
+        let tushare_response = self.call_api(request).await?;
 
         if let Some(item) = tushare_response.data.items.first() {
             Ok(Stock::from_vec(&tushare_response.data.fields, item))
