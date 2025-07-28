@@ -2,12 +2,16 @@
 
 > ⚠️ **开发状态**: 本项目还在开发中，API 可能会发生变化。请谨慎在生产环境中使用。
 
-这是一个使用 Rust 编写的库，提供通过 Tushare API 获取 A 股股票数据的功能。
+这是一个使用 Rust 编写的通用 Tushare API 客户端库，提供对 Tushare 各种数据接口的访问功能。
 
 ## 功能特性
 
-- 获取所有上市状态的 A 股股票信息
-- 显示股票代码、简称、公司名称、地区、行业、市场和上市日期
+- 支持所有 Tushare API 接口调用
+- 类型安全的 API 枚举和错误处理
+- 灵活的请求参数和字段配置
+- 支持环境变量配置 Token
+- 自定义超时设置
+- 简洁的宏语法支持
 
 ## 前置要求
 
@@ -43,22 +47,18 @@ export TUSHARE_TOKEN=your_token_here
 #### 方式一：直接传入 Token
 
 ```rust
-use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
-use std::collections::HashMap;
+use tushare_api::{TushareClient, TushareRequest, Api, TushareResult, params, fields};
 
 #[tokio::main]
 async fn main() -> TushareResult<()> {
     // 创建客户端
     let client = TushareClient::new("your_tushare_token_here");
     
-    // 创建请求
-    let mut params = HashMap::new();
-    params.insert("list_status".to_string(), "L".to_string());
-    
+    // 创建请求 - 使用便捷宏
     let request = TushareRequest {
         api_name: Api::StockBasic,
-        params,
-        fields: vec!["ts_code".to_string(), "name".to_string()],
+        params: params!("list_status" => "L"),
+        fields: fields!["ts_code", "name"],
     };
     
     // 调用 API
@@ -82,22 +82,18 @@ export TUSHARE_TOKEN=your_tushare_token_here
 
 然后在代码中使用：
 ```rust
-use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
-use std::collections::HashMap;
+use tushare_api::{TushareClient, TushareRequest, Api, TushareResult, params, fields};
 
 #[tokio::main]
 async fn main() -> TushareResult<()> {
     // 从环境变量创建客户端
     let client = TushareClient::from_env()?;
     
-    // 创建请求
-    let mut params = HashMap::new();
-    params.insert("list_status".to_string(), "L".to_string());
-    
+    // 创建请求 - 使用便捷宏
     let request = TushareRequest {
         api_name: Api::StockBasic,
-        params,
-        fields: vec!["ts_code".to_string(), "name".to_string()],
+        params: params!("list_status" => "L"),
+        fields: fields!["ts_code", "name"],
     };
     
     // 调用 API
@@ -170,18 +166,26 @@ export TUSHARE_TOKEN=your_actual_token_here  # Linux/Mac
 cargo run --example basic_usage
 ```
 
-## 输出示例
+## 便捷宏使用
 
-程序运行后会显示类似以下的输出：
+库提供了便捷的宏来简化请求构建：
 
-```
-正在获取A股股票列表...
-成功获取到 4000+ 只A股股票:
-股票代码      简称     公司名称              地区     行业            市场     上市日期  
-------------------------------------------------------------------------------------------
-000001.SZ    平安银行  平安银行股份有限公司      深圳     银行            主板     19910403
-000002.SZ    万科A    万科企业股份有限公司      深圳     房地产开发       主板     19910129
-...
+```rust
+use tushare_api::{params, fields, request, Api};
+
+// 使用 params! 宏创建参数
+let params = params!("list_status" => "L", "exchange" => "SSE");
+
+// 使用 fields! 宏创建字段列表
+let fields = fields!["ts_code", "name", "industry"];
+
+// 使用 request! 宏一次性创建完整请求
+let req = request!(Api::StockBasic, {
+    "list_status" => "L",
+    "exchange" => "SSE"
+}, [
+    "ts_code", "name", "industry"
+]);
 ```
 
 ## API 文档
@@ -193,21 +197,27 @@ cargo run --example basic_usage
 #### 方法
 
 - `new(token: &str) -> Self`: 创建新的客户端实例（使用默认超时设置：连接超时 10 秒，请求超时 30 秒）
+- `from_env() -> TushareResult<Self>`: 从环境变量 `TUSHARE_TOKEN` 创建客户端实例
 - `with_timeout(token: &str, connect_timeout: Duration, timeout: Duration) -> Self`: 创建带自定义超时设置的客户端实例
-- `get_stock_list() -> Result<Vec<Stock>, Box<dyn std::error::Error>>`: 获取所有上市状态的 A 股股票列表
-- `get_stock_by_code(ts_code: &str) -> Result<Option<Stock>, Box<dyn std::error::Error>>`: 根据股票代码获取特定股票信息
+- `from_env_with_timeout(connect_timeout: Duration, timeout: Duration) -> TushareResult<Self>`: 从环境变量创建带自定义超时的客户端
+- `call_api(request: TushareRequest) -> TushareResult<TushareResponse>`: 调用 Tushare API
 
-### Stock
+### TushareRequest
 
-股票信息结构体，包含以下字段：
+API 请求结构体，包含以下字段：
 
-- `ts_code`: 股票代码（如：000001.SZ）
-- `symbol`: 股票简称
-- `name`: 公司名称
-- `area`: 地区
-- `industry`: 行业
-- `market`: 市场类型
-- `list_date`: 上市日期
+- `api_name`: API 名称（使用 `Api` 枚举）
+- `params`: 请求参数（HashMap<String, String>）
+- `fields`: 返回字段列表（Vec<String>）
+
+### TushareResponse
+
+API 响应结构体，包含以下字段：
+
+- `request_id`: 请求 ID
+- `code`: 响应状态码
+- `msg`: 响应消息
+- `data`: 响应数据（TushareData）
 
 ## 依赖项
 
@@ -216,13 +226,13 @@ cargo run --example basic_usage
 - `serde`: 序列化/反序列化库
 - `serde_json`: JSON 处理
 
-## API 说明
+## 支持的 API
 
-本项目使用 Tushare 的 `stock_basic` 接口获取股票基础信息：
+本库支持所有 Tushare API 接口，通过 `Api` 枚举定义：
 
-- **接口**: `stock_basic`
-- **参数**: `list_status=L` (获取上市状态的股票)
-- **字段**: `ts_code,symbol,name,area,industry,market,list_date`
+- `Api::StockBasic`: 股票基础信息
+- `Api::Custom(String)`: 自定义 API 接口名称
+- 更多 API 接口持续添加中...
 
 ## 错误处理
 
@@ -237,7 +247,8 @@ cargo run --example basic_usage
 
 1. 请确保您的 Tushare API Token 有效且有足够的调用次数
 2. 免费用户可能有 API 调用频率限制
-3. 程序默认只显示前 20 条记录以避免输出过多内容
+3. 建议使用环境变量方式配置 Token 以提高安全性
+4. 可根据需要调整超时设置以适应不同的网络环境
 
 ## 许可证
 
