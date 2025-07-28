@@ -28,12 +28,14 @@ mod error;
 mod api;
 mod types;
 mod client;
+mod logging;
 
 // 公开导出
 pub use error::{TushareError, TushareResult};
 pub use api::Api;
 pub use types::{TushareRequest, TushareRequestString, TushareResponse, TushareData};
-pub use client::TushareClient;
+pub use client::{TushareClient, TushareClientBuilder};
+pub use logging::{LogLevel, LogConfig, Logger};
 
 // 宏通过 #[macro_export] 已经在 crate 根部可用
 // 无需重新导出

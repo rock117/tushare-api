@@ -1,11 +1,13 @@
 use reqwest::Client;
-use std::time::Duration;
-use crate::error::{TushareError, TushareResult};
-use crate::types::{TushareRequest, TushareResponse};
-use crate::api::serialize_api_name;
-use serde::Serialize;
+use std::time::{Duration, Instant};
 use std::collections::HashMap;
-use crate::api::Api;
+use crate::error::{TushareError, TushareResult};
+use crate::api::{Api, serialize_api_name};
+use crate::types::{TushareRequest, TushareResponse};
+use crate::logging::{LogLevel, LogConfig, Logger};
+use serde::{Serialize};
+use serde_json;
+use uuid::Uuid;
 
 /// 内部使用的完整请求结构体（包含 token）
 #[derive(Debug, Serialize)]
@@ -18,12 +20,109 @@ struct InternalTushareRequest {
 }
 
 /// Tushare API 客户端
+#[derive(Debug)]
 pub struct TushareClient {
     token: String,
     client: Client,
+    logger: Logger,
+}
+
+/// Tushare 客户端构建器
+#[derive(Debug)]
+pub struct TushareClientBuilder {
+    token: Option<String>,
+    connect_timeout: Option<Duration>,
+    timeout: Option<Duration>,
+    log_config: LogConfig,
+}
+
+impl TushareClientBuilder {
+    pub fn new() -> Self {
+        Self {
+            token: None,
+            connect_timeout: None,
+            timeout: None,
+            log_config: LogConfig::default(),
+        }
+    }
+
+    pub fn with_token(mut self, token: &str) -> Self {
+        self.token = Some(token.to_string());
+        self
+    }
+
+    pub fn with_connect_timeout(mut self, connect_timeout: Duration) -> Self {
+        self.connect_timeout = Some(connect_timeout);
+        self
+    }
+
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+
+    pub fn with_log_config(mut self, log_config: LogConfig) -> Self {
+        self.log_config = log_config;
+        self
+    }
+
+    /// 设置日志级别
+    pub fn with_log_level(mut self, level: LogLevel) -> Self {
+        self.log_config.level = level;
+        self
+    }
+
+    /// 启用或禁用请求日志
+    pub fn log_requests(mut self, enabled: bool) -> Self {
+        self.log_config.log_requests = enabled;
+        self
+    }
+
+    /// 启用或禁用响应日志
+    pub fn log_responses(mut self, enabled: bool) -> Self {
+        self.log_config.log_responses = enabled;
+        self
+    }
+
+    /// 启用或禁用敏感数据日志
+    pub fn log_sensitive_data(mut self, enabled: bool) -> Self {
+        self.log_config.log_sensitive_data = enabled;
+        self
+    }
+
+    /// 启用或禁用性能指标日志
+    pub fn log_performance(mut self, enabled: bool) -> Self {
+        self.log_config.log_performance = enabled;
+        self
+    }
+
+    pub fn build(self) -> TushareResult<TushareClient> {
+        let token = self.token.ok_or(TushareError::InvalidToken)?;
+        let connect_timeout = self.connect_timeout.unwrap_or(Duration::from_secs(10));
+        let timeout = self.timeout.unwrap_or(Duration::from_secs(30));
+
+        let client = Client::builder()
+            .connect_timeout(connect_timeout)
+            .timeout(timeout)
+            .build()
+            .expect("Failed to create HTTP client");
+
+        Ok(TushareClient {
+            token,
+            client,
+            logger: Logger::new(self.log_config),
+        })
+    }
 }
 
 impl TushareClient {
+    /// 创建客户端构建器
+    pub fn builder() -> TushareClientBuilder {
+        TushareClientBuilder::new()
+    }
+
+
+
     /// 创建新的 Tushare 客户端（使用默认超时设置）
     /// 
     /// # 参数
@@ -136,6 +235,7 @@ impl TushareClient {
         Self {
             token: token.to_string(),
             client,
+            logger: Logger::new(LogConfig::default()),
         }
     }
 
@@ -170,6 +270,32 @@ impl TushareClient {
     /// # }
     /// ```
     pub async fn call_api(&self, request: TushareRequest) -> TushareResult<TushareResponse> {
+        let request_id = Uuid::new_v4().to_string();
+        let start_time = Instant::now();
+        
+        // 记录API调用开始
+        self.logger.log_api_start(
+            &request_id,
+            &request.api_name.name(),
+            request.params.len(),
+            request.fields.len()
+        );
+        
+        // 记录详细请求信息（如果启用）
+        let token_preview_string = if self.logger.config().log_sensitive_data {
+            Some(format!("token: {}***", &self.token[..self.token.len().min(8)]))
+        } else {
+            None
+        };
+        
+        self.logger.log_request_details(
+            &request_id,
+            &request.api_name.name(),
+            &format!("{:?}", request.params),
+            &format!("{:?}", request.fields),
+            token_preview_string.as_deref()
+        );
+        
         let internal_request = InternalTushareRequest {
             api_name: request.api_name,
             token: self.token.clone(),
@@ -177,21 +303,59 @@ impl TushareClient {
             fields: request.fields,
         };
 
+        self.logger.log_http_request(&request_id);
+        
         let response = self.client
             .post("http://api.tushare.pro")
             .json(&internal_request)
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                let elapsed = start_time.elapsed();
+                self.logger.log_http_error(&request_id, elapsed, &e.to_string());
+                e
+            })?;
 
-        let tushare_response: TushareResponse = response.json().await?;
+        let status = response.status();
+        self.logger.log_http_response(&request_id, status.as_u16());
+        
+        let response_text = response.text().await
+            .map_err(|e| {
+                let elapsed = start_time.elapsed();
+                self.logger.log_response_read_error(&request_id, elapsed, &e.to_string());
+                e
+            })?;
+        
+        // 记录原始响应内容（如果启用响应日志）
+        self.logger.log_raw_response(&request_id, &response_text);
+        
+        let tushare_response: TushareResponse = serde_json::from_str(&response_text)
+            .map_err(|e| {
+                let elapsed = start_time.elapsed();
+                self.logger.log_json_parse_error(&request_id, elapsed, &e.to_string(), &response_text);
+                e
+            })?;
+
+        let elapsed = start_time.elapsed();
         
         if tushare_response.code != 0 {
-            let message = tushare_response.msg.unwrap_or("未知错误".to_string());
+            let error_msg = tushare_response.msg.clone().unwrap_or_else(|| "Unknown API error".to_string());
+            self.logger.log_api_error(&request_id, elapsed, tushare_response.code, &error_msg);
             return Err(TushareError::ApiError {
                 code: tushare_response.code,
-                message,
+                message: error_msg,
             });
         }
+
+        // 记录成功信息和性能指标
+        self.logger.log_api_success(&request_id, elapsed, tushare_response.data.items.len());
+        
+        // 记录响应详情（如果启用）
+        self.logger.log_response_details(
+            &request_id,
+            &tushare_response.request_id,
+            &format!("{:?}", tushare_response.data.fields)
+        );
 
         Ok(tushare_response)
     }
