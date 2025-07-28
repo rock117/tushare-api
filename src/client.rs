@@ -139,42 +139,37 @@ impl TushareClient {
         }
     }
 
-    /// 通用的 Tushare API 调用方法
+    /// 调用 Tushare API - 支持灵活的字符串类型
     /// 
     /// # 参数
     /// 
-    /// * `request` - Tushare API 请求结构体
+    /// * `request` - API 请求参数，支持直接使用字符串字面量
     /// 
     /// # 返回值
     /// 
-    /// 返回 `TushareResult<TushareResponse>`
+    /// 返回 API 响应结果
     /// 
     /// # 示例
     /// 
-    /// ```rust,no_run
-    /// use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
-    /// use std::collections::HashMap;
+    /// ```rust
+    /// use tushare_api::{TushareClient, TushareRequest, Api, params, fields, request};
     /// 
-    /// #[tokio::main]
-    /// async fn main() -> TushareResult<()> {
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = TushareClient::new("your_token_here");
     ///     
-    ///     let mut params = HashMap::new();
-    ///     params.insert("list_status".to_string(), "L".to_string());
-    ///     
-    ///     let request = TushareRequest {
-    ///         api_name: Api::StockBasic,
-    ///         params,
-    ///         fields: vec!["ts_code".to_string(), "name".to_string()],
-    ///     };
+    ///     // 现在可以直接使用字符串字面量！
+    ///     let request = request!(Api::StockBasic, {
+    ///         "list_status" => "L"
+    ///     }, [
+    ///         "ts_code", "name"
+    ///     ]);
     ///     
     ///     let response = client.call_api(request).await?;
-    ///     println!("API 调用成功，返回 {} 条记录", response.data.items.len());
-    ///     Ok(())
-    /// }
+    ///     println!("Response: {:?}", response);
+    /// #   Ok(())
+    /// # }
     /// ```
     pub async fn call_api(&self, request: TushareRequest) -> TushareResult<TushareResponse> {
-        // 构建包含 token 的内部请求结构体
         let internal_request = InternalTushareRequest {
             api_name: request.api_name,
             token: self.token.clone(),

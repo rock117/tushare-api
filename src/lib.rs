@@ -2,30 +2,25 @@
 //! 
 //! 这是一个用于访问 Tushare API 的通用 Rust 库，提供对 Tushare 各种 API 的访问功能。
 //! 
-//! ## 使用示例
+//! # 基本使用方法
 //! 
-//! ```rust,no_run
-//! use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
-//! use std::collections::HashMap;
+//! ```rust
+//! use tushare_api::{TushareClient, TushareRequest, Api, params, fields};
 //! 
-//! #[tokio::main]
-//! async fn main() -> TushareResult<()> {
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     let client = TushareClient::new("your_token_here");
 //!     
-//!     let mut params = HashMap::new();
-//!     params.insert("list_status".to_string(), "L".to_string());
-//!     
-//!     let request = TushareRequest {
+//!     // 现在可以直接使用字符串字面量！
+//!     let req = TushareRequest {
 //!         api_name: Api::StockBasic,
-//!         params,
-//!         fields: vec!["ts_code".to_string(), "name".to_string()],
+//!         params: params!("list_status" => "L"),
+//!         fields: fields!["ts_code", "name"],
 //!     };
 //!     
-//!     let response = client.call_api(request).await?;
-//!     println!("获取到 {} 条记录", response.data.items.len());
-//!     
-//!     Ok(())
-//! }
+//!     let response = client.call_api(req).await?;
+//!     println!("Response: {:?}", response);
+//! #   Ok(())
+//! # }
 //! ```
 
 // 模块定义
@@ -37,13 +32,16 @@ mod client;
 // 公开导出
 pub use error::{TushareError, TushareResult};
 pub use api::Api;
-pub use types::{TushareRequest, TushareResponse, TushareData};
+pub use types::{TushareRequest, TushareRequestString, TushareResponse, TushareData};
 pub use client::TushareClient;
+
+// 宏通过 #[macro_export] 已经在 crate 根部可用
+// 无需重新导出
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+
 
     #[test]
     fn test_client_creation() {
@@ -54,16 +52,16 @@ mod tests {
 
     #[test]
     fn test_request_creation() {
-        let mut params = HashMap::new();
-        params.insert("test_param".to_string(), "test_value".to_string());
+        let _client = TushareClient::new("test_token");
         
+        // 使用新的简化方式
         let request = TushareRequest {
-            api_name: Api::Custom("test_api".to_string()),
-            params,
-            fields: vec!["field1".to_string(), "field2".to_string()],
+            api_name: Api::StockBasic,
+            params: params!("test_param" => "test_value"),
+            fields: fields!["field1", "field2"],
         };
         
-        assert_eq!(request.api_name, Api::Custom("test_api".to_string()));
+        assert_eq!(request.api_name, Api::StockBasic);
         assert_eq!(request.fields.len(), 2);
     }
 

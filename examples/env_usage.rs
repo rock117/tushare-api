@@ -1,5 +1,4 @@
-use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
-use std::collections::HashMap;
+use tushare_api::{TushareClient, TushareRequest, Api, TushareResult, params, fields};
 use std::time::Duration;
 
 #[tokio::main]
@@ -20,19 +19,11 @@ async fn main() -> TushareResult<()> {
         }
     };
     
-    // 创建请求
-    let mut params = HashMap::new();
-    params.insert("list_status".to_string(), "L".to_string());
-    
+    // 使用宏构建请求（支持直接使用字符串字面量）
     let request = TushareRequest {
         api_name: Api::StockBasic,
-        params,
-        fields: vec![
-            "ts_code".to_string(),
-            "name".to_string(),
-            "industry".to_string(),
-            "area".to_string(),
-        ],
+        params: params!("list_status" => "L"),
+        fields: fields!["ts_code", "name", "industry", "area"],
     };
     
     // 调用 API
@@ -59,23 +50,15 @@ async fn main() -> TushareResult<()> {
         Duration::from_secs(60)  // 请求超时 60 秒
     )?;
     
-    let mut stock_params = HashMap::new();
-    stock_params.insert("ts_code".to_string(), "000001.SZ".to_string());
+    println!("\n=== 演示自定义 API 调用 ===\n");
     
-    let stock_request = TushareRequest {
-        api_name: Api::StockBasic,
-        params: stock_params,
-        fields: vec![
-            "ts_code".to_string(),
-            "symbol".to_string(),
-            "name".to_string(),
-            "area".to_string(),
-            "industry".to_string(),
-            "list_date".to_string(),
-        ],
+    let custom_request = TushareRequest {
+        api_name: Api::Custom("daily".to_string()),
+        params: params!("ts_code" => "000001.SZ"),
+        fields: fields!["ts_code", "trade_date", "close"],
     };
     
-    match client_with_timeout.call_api(stock_request).await {
+    match client_with_timeout.call_api(custom_request).await {
         Ok(response) => {
             if let Some(item) = response.data.items.first() {
                 println!("✅ 找到股票信息:");

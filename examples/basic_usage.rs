@@ -1,11 +1,11 @@
-use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
+use tushare_api::{TushareClient, TushareRequest, Api, TushareResult, params, fields};
 use std::time::Duration;
 use std::collections::HashMap;
 use std::env;
 
 #[tokio::main]
 async fn main() -> TushareResult<()> {
-    // 从环境变量获取 Tushare token
+    // 从环境变量获取 token
     let token = env::var("TUSHARE_TOKEN")
         .expect("请设置环境变量 TUSHARE_TOKEN");
 
@@ -14,18 +14,10 @@ async fn main() -> TushareResult<()> {
     
     println!("=== 使用默认超时设置获取股票基本信息 ===");
     
-    let mut params = HashMap::new();
-    params.insert("list_status".to_string(), "L".to_string());
-    
     let request = TushareRequest {
         api_name: Api::StockBasic,
-        params,
-        fields: vec![
-            "ts_code".to_string(),
-            "name".to_string(),
-            "industry".to_string(),
-            "area".to_string(),
-        ],
+        params: params!("list_status" => "L"),
+        fields: fields!["ts_code", "name", "industry", "area"],
     };
     
     match client.call_api(request).await {
@@ -53,18 +45,18 @@ async fn main() -> TushareResult<()> {
     );
     
     let mut stock_params = HashMap::new();
-    stock_params.insert("ts_code".to_string(), "000001.SZ".to_string());
+    stock_params.insert("ts_code".into(), "000001.SZ".into());
     
     let stock_request = TushareRequest {
         api_name: Api::StockBasic,
         params: stock_params,
         fields: vec![
-            "ts_code".to_string(),
-            "symbol".to_string(),
-            "name".to_string(),
-            "area".to_string(),
-            "industry".to_string(),
-            "list_date".to_string(),
+            "ts_code".into(),
+            "symbol".into(),
+            "name".into(),
+            "area".into(),
+            "industry".into(),
+            "list_date".into(),
         ],
     };
     

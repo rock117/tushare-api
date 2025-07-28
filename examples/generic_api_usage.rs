@@ -1,5 +1,4 @@
-use tushare_api::{TushareClient, TushareRequest, Api, TushareResult};
-use std::collections::HashMap;
+use tushare_api::{TushareClient, TushareRequest, Api, TushareResult, params, fields};
 use std::env;
 
 #[tokio::main]
@@ -13,22 +12,11 @@ async fn main() -> TushareResult<()> {
 
     println!("=== 使用通用 API 方法获取股票列表 ===");
     
-    // 构建请求参数
-    let mut params = HashMap::new();
-    params.insert("list_status".to_string(), "L".to_string());
-    
-    // 创建请求结构体
+    // 使用宏构建请求（支持直接使用字符串字面量）
     let request = TushareRequest {
         api_name: Api::StockBasic,
-        params,
-        fields: vec![
-            "ts_code".to_string(),
-            "symbol".to_string(),
-            "name".to_string(),
-            "area".to_string(),
-            "industry".to_string(),
-            "list_date".to_string(),
-        ],
+        params: params!("list_status" => "L"),
+        fields: fields!["ts_code", "symbol", "name", "area", "industry", "list_date"],
     };
     
     // 调用通用 API 方法
@@ -49,19 +37,10 @@ async fn main() -> TushareResult<()> {
     println!("\n=== 使用通用 API 方法查询特定股票 ===");
     
     // 查询特定股票
-    let mut params = HashMap::new();
-    params.insert("ts_code".to_string(), "000001.SZ".to_string());
-    
     let request = TushareRequest {
         api_name: Api::StockBasic,
-        params,
-        fields: vec![
-            "ts_code".to_string(),
-            "name".to_string(),
-            "industry".to_string(),
-            "market".to_string(),
-            "list_date".to_string(),
-        ],
+        params: params!("ts_code" => "000001.SZ"),
+        fields: fields!["ts_code", "name", "industry", "market", "list_date"],
     };
     
     let response = client.call_api(request).await?;
