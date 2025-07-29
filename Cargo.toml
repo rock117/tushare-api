@@ -8,7 +8,7 @@ repository = "https://github.com/rock117/tushare-api"
 homepage = "https://github.com/rock117/tushare-api"
 documentation = "https://docs.rs/tushare-api"
 keywords = ["tushare", "finance", "api", "stock", "data"]
-categories = ["api-bindings", "web-programming::http-client", "tushare"]
+categories = ["api-bindings", "web-programming::http-client"]
 authors = ["rock huang <manj22@163.com>"]
 
 [lib]
