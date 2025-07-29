@@ -34,7 +34,7 @@ mod logging;
 pub use error::{TushareError, TushareResult};
 pub use api::Api;
 pub use types::{TushareRequest, TushareRequestString, TushareResponse, TushareData};
-pub use client::{TushareClient, TushareClientBuilder};
+pub use client::{TushareClient, TushareClientBuilder, HttpClientConfig};
 pub use logging::{LogLevel, LogConfig, Logger};
 
 // Macros are already available at crate root via #[macro_export]

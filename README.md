@@ -1,255 +1,547 @@
-# Tushare API - Rust 库
+# Tushare API - Rust Library
 
-> ⚠️ **开发状态**: 本项目还在开发中，API 可能会发生变化。请谨慎在生产环境中使用。
+[![Crates.io](https://img.shields.io/crates/v/tushare-api.svg)](https://crates.io/crates/tushare-api)
+[![Documentation](https://docs.rs/tushare-api/badge.svg)](https://docs.rs/tushare-api)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-这是一个使用 Rust 编写的通用 Tushare API 客户端库，提供对 Tushare 各种数据接口的访问功能。
+A comprehensive Rust client library for accessing Tushare financial data APIs. This library provides type-safe, async access to all Tushare data interfaces.
 
-## 功能特性
+## ✨ Features
 
-- 支持所有 Tushare API 接口调用
-- 类型安全的 API 枚举和错误处理
-- 灵活的请求参数和字段配置
-- 支持环境变量配置 Token
-- 自定义超时设置
-- 简洁的宏语法支持
+- 🚀 **Async/Await Support**: Built for high-performance async operations
+- 🔒 **Type Safety**: Strongly typed API enums and comprehensive error handling
+- 🔧 **Developer Friendly**: Convenient macros and builder patterns
+- 🌍 **Production Ready**: Comprehensive error handling and security features
 
-## 前置要求
+## 📋 Requirements
 
-1. **Rust 环境**: 确保已安装 Rust (推荐使用 rustup)
-2. **Tushare API Token**: 需要在 [Tushare官网](https://tushare.pro/) 注册并获取 API Token
+- **Tushare API Token**: Register at [Tushare Pro](https://tushare.pro/) to get your API token
 
-## 安装
+## 📦 Installation
 
-在你的 `Cargo.toml` 中添加以下依赖：
+Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tushare-api = "0.1.0"
-tokio = { version = "1.0", features = ["full"] }
+tushare-api = "1.0.0"
+
+# Optional: Enable tracing support
+# tushare-api = { version = "1.0.0", features = ["tracing"] }
 ```
 
-## 使用方法
-
-### 环境变量设置
-
-首先，你需要设置 Tushare API Token 环境变量：
-
-```bash
-# Windows
-set TUSHARE_TOKEN=your_token_here
-
-# Linux/Mac
-export TUSHARE_TOKEN=your_token_here
-```
-
-### 基本使用
-
-#### 方式一：直接传入 Token
+## 🚀 Quick Start
 
 ```rust
-use tushare_api::{TushareClient, TushareRequest, Api, TushareResult, params, fields};
+use tushare_api::{TushareClient, Api, request};
 
 #[tokio::main]
-async fn main() -> TushareResult<()> {
-    // 创建客户端
-    let client = TushareClient::new("your_tushare_token_here");
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Set your token as environment variable
+    std::env::set_var("TUSHARE_TOKEN", "your_token_here");
     
-    // 创建请求 - 使用便捷宏
-    let request = TushareRequest {
-        api_name: Api::StockBasic,
-        params: params!("list_status" => "L"),
-        fields: fields!["ts_code", "name"],
-    };
-    
-    // 调用 API
-    let response = client.call_api(request).await?;
-    println!("获取到 {} 条记录", response.data.items.len());
-    
-    Ok(())
-}
-```
-
-#### 方式二：使用环境变量（推荐）
-
-首先设置环境变量：
-```bash
-# Windows
-set TUSHARE_TOKEN=your_tushare_token_here
-
-# Linux/macOS
-export TUSHARE_TOKEN=your_tushare_token_here
-```
-
-然后在代码中使用：
-```rust
-use tushare_api::{TushareClient, TushareRequest, Api, TushareResult, params, fields};
-
-#[tokio::main]
-async fn main() -> TushareResult<()> {
-    // 从环境变量创建客户端
+    // Create client from environment variable
     let client = TushareClient::from_env()?;
     
-    // 创建请求 - 使用便捷宏
-    let request = TushareRequest {
-        api_name: Api::StockBasic,
-        params: params!("list_status" => "L"),
-        fields: fields!["ts_code", "name"],
-    };
+    // Make API call using convenient macro
+    let response = client.call_api(request!(Api::StockBasic, {
+        "list_status" => "L",
+        "exchange" => "SSE"
+    }, [
+        "ts_code", "name", "industry"
+    ])).await?;
     
-    // 调用 API
-    let response = client.call_api(request).await?;
-    println!("获取到 {} 条记录", response.data.items.len());
-    
+    println!("Retrieved {} records", response.data.items.len());
     Ok(())
 }
 ```
 
-### 客户端创建方法
+## 📖 API Usage Guide
 
-本库提供多种创建客户端的方式：
-
-#### 1. 使用默认超时设置
+### 1. How to Import Tushare API
 
 ```rust
-// 直接传入 token
-let client = TushareClient::new("your_token_here");
+// Basic imports
+use tushare_api::{TushareClient, TushareRequest, TushareResponse, Api, TushareResult};
 
-// 从环境变量获取 token
-let client = TushareClient::from_env()?;
+// For convenient macros
+use tushare_api::{params, fields, request};
+
+// For logging configuration
+use tushare_api::{LogLevel, LogConfig, Logger};
+
+// For HTTP client configuration and connection pool settings
+use tushare_api::{TushareClientBuilder, HttpClientConfig};
+
+// For custom timeouts
+use std::time::Duration;
 ```
 
-#### 2. 自定义超时设置
+### 2. How to Create Tushare Client
+
+The library provides multiple ways to create a client:
+
+#### Method 1: Using Environment Variable (Recommended)
 
 ```rust
-use std::time::Duration;
+// Set environment variable first
+std::env::set_var("TUSHARE_TOKEN", "your_token_here");
 
-// 直接传入 token 和超时设置
-let client = TushareClient::with_timeout(
-    "your_token_here",
-    Duration::from_secs(5),  // 连接超时 5 秒
-    Duration::from_secs(60)  // 请求超时 60 秒
-);
+// Create client with default settings
+let client = TushareClient::from_env()?;
 
-// 从环境变量获取 token 和自定义超时设置
+// Create client with custom timeouts
 let client = TushareClient::from_env_with_timeout(
-    Duration::from_secs(5),  // 连接超时 5 秒
-    Duration::from_secs(60)  // 请求超时 60 秒
+    Duration::from_secs(10),  // connect timeout
+    Duration::from_secs(60)   // request timeout
 )?;
 ```
 
-> **推荐使用环境变量方式**：这样可以避免在代码中硬编码 API Token，提高安全性。
-
-### 自定义超时设置
+#### Method 2: Direct Token
 
 ```rust
-use tushare_api::TushareClient;
-use std::time::Duration;
+// Create client with default settings
+let client = TushareClient::new("your_token_here");
 
+// Create client with custom timeouts
 let client = TushareClient::with_timeout(
     "your_token_here",
-    Duration::from_secs(5),  // 连接超时 5 秒
-    Duration::from_secs(60)  // 请求超时 60 秒
+    Duration::from_secs(10),  // connect timeout
+    Duration::from_secs(60)   // request timeout
 );
 ```
 
-## 运行示例
-
-项目包含一个完整的使用示例，您可以这样运行：
-
-```bash
-# 设置环境变量
-set TUSHARE_TOKEN=your_actual_token_here  # Windows
-# 或
-export TUSHARE_TOKEN=your_actual_token_here  # Linux/Mac
-
-# 运行示例
-cargo run --example basic_usage
-```
-
-## 便捷宏使用
-
-库提供了便捷的宏来简化请求构建：
+#### Method 3: Using Builder Pattern
 
 ```rust
-use tushare_api::{params, fields, request, Api};
+// Basic builder with timeouts and logging
+let client = TushareClient::builder()
+    .with_token("your_token_here")
+    .with_connect_timeout(Duration::from_secs(10))
+    .with_timeout(Duration::from_secs(60))
+    .with_log_level(LogLevel::Debug)
+    .log_requests(true)
+    .log_responses(false)
+    .log_sensitive_data(false)
+    .log_performance(true)
+    .build()?;
 
-// 使用 params! 宏创建参数
-let params = params!("list_status" => "L", "exchange" => "SSE");
+// Advanced builder with connection pool settings
+let client = TushareClient::builder()
+    .with_token("your_token_here")
+    .with_connect_timeout(Duration::from_secs(5))
+    .with_timeout(Duration::from_secs(60))
+    .with_pool_max_idle_per_host(20)  // Max 20 idle connections per host
+    .with_pool_idle_timeout(Duration::from_secs(60))  // Keep connections for 60s
+    .with_log_level(LogLevel::Info)
+    .build()?;
 
-// 使用 fields! 宏创建字段列表
-let fields = fields!["ts_code", "name", "industry"];
+// Using HttpClientConfig for advanced HTTP settings
+let http_config = HttpClientConfig::new()
+    .with_connect_timeout(Duration::from_secs(3))
+    .with_timeout(Duration::from_secs(30))
+    .with_pool_max_idle_per_host(15)
+    .with_pool_idle_timeout(Duration::from_secs(45));
 
-// 使用 request! 宏一次性创建完整请求
-let req = request!(Api::StockBasic, {
+let client = TushareClient::builder()
+    .with_token("your_token_here")
+    .with_http_config(http_config)
+    .with_log_level(LogLevel::Debug)
+    .build()?;
+```
+
+### 3. How to Send Requests
+
+#### Method 1: Using Convenient Macros (Recommended)
+
+```rust
+use tushare_api::{request, Api};
+
+// Single API call with parameters and fields
+let response = client.call_api(request!(Api::StockBasic, {
     "list_status" => "L",
     "exchange" => "SSE"
 }, [
-    "ts_code", "name", "industry"
-]);
+    "ts_code", "name", "industry", "area"
+])).await?;
+
+// API call without parameters
+let response = client.call_api(request!(Api::TradeCal, {}, [
+    "exchange", "cal_date", "is_open"
+])).await?;
+
+// API call without fields (get all fields)
+let response = client.call_api(request!(Api::StockBasic, {
+    "list_status" => "L"
+}, [])).await?;
 ```
 
-## API 文档
+#### Method 2: Using Individual Macros
 
-### TushareClient
+```rust
+use tushare_api::{params, fields, TushareRequest, Api};
 
-主要的客户端结构体，用于与 Tushare API 交互。
+// Create parameters
+let params = params!(
+    "list_status" => "L",
+    "exchange" => "SSE"
+);
 
-#### 方法
+// Create fields
+let fields = fields![
+    "ts_code", "name", "industry"
+];
 
-- `new(token: &str) -> Self`: 创建新的客户端实例（使用默认超时设置：连接超时 10 秒，请求超时 30 秒）
-- `from_env() -> TushareResult<Self>`: 从环境变量 `TUSHARE_TOKEN` 创建客户端实例
-- `with_timeout(token: &str, connect_timeout: Duration, timeout: Duration) -> Self`: 创建带自定义超时设置的客户端实例
-- `from_env_with_timeout(connect_timeout: Duration, timeout: Duration) -> TushareResult<Self>`: 从环境变量创建带自定义超时的客户端
-- `call_api(request: TushareRequest) -> TushareResult<TushareResponse>`: 调用 Tushare API
+// Create request
+let request = TushareRequest {
+    api_name: Api::StockBasic,
+    params,
+    fields,
+};
 
-### TushareRequest
+// Send request
+let response = client.call_api(request).await?;
+```
 
-API 请求结构体，包含以下字段：
+#### Method 3: Manual Construction
 
-- `api_name`: API 名称（使用 `Api` 枚举）
-- `params`: 请求参数（HashMap<String, String>）
-- `fields`: 返回字段列表（Vec<String>）
+```rust
+use std::collections::HashMap;
 
-### TushareResponse
+let mut params = HashMap::new();
+params.insert("list_status".to_string(), "L".to_string());
+params.insert("exchange".to_string(), "SSE".to_string());
 
-API 响应结构体，包含以下字段：
+let fields = vec![
+    "ts_code".to_string(),
+    "name".to_string(),
+    "industry".to_string(),
+];
 
-- `request_id`: 请求 ID
-- `code`: 响应状态码
-- `msg`: 响应消息
-- `data`: 响应数据（TushareData）
+let request = TushareRequest {
+    api_name: Api::StockBasic,
+    params,
+    fields,
+};
 
-## 依赖项
+let response = client.call_api(request).await?;
+```
 
-- `reqwest`: HTTP 客户端库，用于发送 API 请求
-- `tokio`: 异步运行时
-- `serde`: 序列化/反序列化库
-- `serde_json`: JSON 处理
+### 4. How to Configure Logging
 
-## 支持的 API
+The library supports both `log` and `tracing` ecosystems with flexible configuration.
 
-本库支持所有 Tushare API 接口，通过 `Api` 枚举定义：
+#### Using with `env_logger` (Default)
 
-- `Api::StockBasic`: 股票基础信息
-- `Api::Custom(String)`: 自定义 API 接口名称
-- 更多 API 接口持续添加中...
+```rust
+// Set log level and initialize logger
+std::env::set_var("RUST_LOG", "tushare_api=debug");
+env_logger::init();
 
-## 错误处理
+// Create client with logging configuration
+let client = TushareClient::builder()
+    .with_token("your_token_here")
+    .with_log_level(LogLevel::Debug)
+    .log_requests(true)        // Log request details
+    .log_responses(false)      // Don't log response content (can be large)
+    .log_sensitive_data(false) // Don't log sensitive data like tokens
+    .log_performance(true)     // Log performance metrics
+    .build()?;
+```
 
-程序包含完善的错误处理机制：
+#### Using with `tracing` (Optional Feature)
 
-- 检查环境变量是否设置
-- 处理网络请求错误
-- 处理 API 响应错误
-- 提供用户友好的错误信息
+First, enable the tracing feature in your `Cargo.toml`:
 
-## 注意事项
+```toml
+[dependencies]
+tushare-api = { version = "1.0.0", features = ["tracing"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+```
 
-1. 请确保您的 Tushare API Token 有效且有足够的调用次数
-2. 免费用户可能有 API 调用频率限制
-3. 建议使用环境变量方式配置 Token 以提高安全性
-4. 可根据需要调整超时设置以适应不同的网络环境
+Then in your code:
 
-## 许可证
+```rust
+use tracing_subscriber;
 
-MIT License
+// Initialize tracing subscriber
+std::env::set_var("RUST_LOG", "tushare_api=trace");
+tracing_subscriber::fmt()
+    .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    .init();
+
+// Client configuration remains the same
+let client = TushareClient::builder()
+    .with_token("your_token_here")
+    .with_log_level(LogLevel::Trace)
+    .log_requests(true)
+    .log_responses(true)
+    .log_performance(true)
+    .build()?;
+```
+
+#### Using `tracing-log` Bridge
+
+If you want to use `tracing` but the library is compiled without the tracing feature:
+
+```toml
+[dependencies]
+tushare-api = "1.0.0"  # Without tracing feature
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tracing-log = "0.2"
+```
+
+```rust
+use tracing_subscriber;
+use tracing_log::LogTracer;
+
+// Initialize log-to-tracing bridge
+LogTracer::init()?;
+
+// Set up tracing subscriber
+std::env::set_var("RUST_LOG", "tushare_api=debug");
+tracing_subscriber::fmt()
+    .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    .init();
+```
+
+#### Log Levels and Output
+
+- **`LogLevel::Off`**: No logging
+- **`LogLevel::Error`**: Only errors
+- **`LogLevel::Warn`**: Errors and warnings
+- **`LogLevel::Info`**: Basic API call information (default)
+- **`LogLevel::Debug`**: Detailed request/response information
+- **`LogLevel::Trace`**: All information including raw response content
+
+Example log output:
+```
+INFO  [abc123] Starting Tushare API call: stock_basic, params count: 2, fields count: 3
+DEBUG [abc123] API request details - API: stock_basic, params: {...}, fields: [...]
+DEBUG [abc123] Sending HTTP request to Tushare API
+DEBUG [abc123] Received HTTP response, status code: 200
+INFO  [abc123] API call successful, duration: 245ms, data rows returned: 100
+```
+
+### 5. Main Data Structures
+
+#### TushareClient
+
+The main client for interacting with Tushare APIs.
+
+```rust
+pub struct TushareClient {
+    // Internal fields are private
+}
+
+impl TushareClient {
+    // Creation methods
+    pub fn new(token: &str) -> Self;
+    pub fn from_env() -> TushareResult<Self>;
+    pub fn with_timeout(token: &str, connect_timeout: Duration, timeout: Duration) -> Self;
+    pub fn from_env_with_timeout(connect_timeout: Duration, timeout: Duration) -> TushareResult<Self>;
+    pub fn builder() -> TushareClientBuilder;
+    
+    // API call method
+    pub async fn call_api(&self, request: TushareRequest) -> TushareResult<TushareResponse>;
+}
+```
+
+#### TushareRequest
+
+Represents an API request with parameters and field specifications.
+
+```rust
+#[derive(Debug, Clone)]
+pub struct TushareRequest {
+    pub api_name: Api,                    // Which API to call
+    pub params: HashMap<String, String>,  // Request parameters
+    pub fields: Vec<String>,              // Fields to return
+}
+```
+
+#### TushareResponse
+
+Represents the response from Tushare API.
+
+```rust
+#[derive(Debug)]
+pub struct TushareResponse {
+    pub request_id: String,  // Unique request identifier
+    pub code: i32,          // Response code (0 = success)
+    pub msg: String,        // Response message
+    pub data: TushareData,  // Actual data
+}
+```
+
+#### TushareData
+
+Contains the actual data returned by the API.
+
+```rust
+#[derive(Debug)]
+pub struct TushareData {
+    pub fields: Vec<String>,     // Field names
+    pub items: Vec<Vec<String>>, // Data rows
+}
+```
+
+#### Api Enum
+
+Strongly typed enumeration of all supported APIs.
+
+```rust
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Api {
+    // Stock APIs
+    StockBasic,      // Basic stock information
+    Daily,           // Daily stock prices
+    DailyBasic,      // Daily basic stock data
+    Weekly,          // Weekly stock data
+    Monthly,         // Monthly stock data
+    StockCompany,    // Company information
+    
+    // Fund APIs
+    FundBasic,       // Basic fund information
+    FundDaily,       // Daily fund data
+    FundPortfolio,   // Fund portfolio
+    
+    // Index APIs
+    IndexBasic,      // Basic index information
+    IndexDaily,      // Daily index data
+    IndexWeekly,     // Weekly index data
+    IndexMonthly,    // Monthly index data
+    IndexDailyBasic, // Daily basic index data
+    
+    // Market Data APIs
+    TradeCal,        // Trading calendar
+    Margin,          // Margin trading data
+    MarginDetail,    // Detailed margin data
+    Moneyflow,       // Money flow data
+    MoneyflowMktDc,  // Market money flow
+    MoneyflowIndustryThs, // Industry money flow
+    
+    // Financial APIs
+    FinaIndicator,   // Financial indicators
+    FinaMainbz,      // Main business data
+    FinaMainbzVip,   // VIP main business data
+    Balancesheet,    // Balance sheet
+    Income,          // Income statement
+    Cashflow,        // Cash flow statement
+    
+    // Other APIs
+    StkHoldernumber, // Shareholder numbers
+    ThsIndex,        // THS index data
+    ThsMember,       // THS member data
+    ThsDaily,        // THS daily data
+    ThsHot,          // THS hot data
+    
+    // US Market APIs
+    UsBasic,         // US stock basic info
+    UsDaily,         // US stock daily data
+    
+    // Custom API
+    Custom(String),  // For any other API by name
+}
+```
+
+#### Error Types
+
+Comprehensive error handling with specific error types.
+
+```rust
+#[derive(Debug)]
+pub enum TushareError {
+    HttpError(reqwest::Error),           // HTTP request errors
+    ApiError { code: i32, message: String }, // API response errors
+    SerializationError(serde_json::Error),   // JSON parsing errors
+    TimeoutError,                        // Network timeout errors
+    InvalidToken,                        // Invalid API token
+    Other(String),                       // Other errors
+}
+
+pub type TushareResult<T> = Result<T, TushareError>;
+```
+
+#### Logging Configuration
+
+```rust
+#[derive(Debug, Clone)]
+pub enum LogLevel {
+    Off,    // No logging
+    Error,  // Errors only
+    Warn,   // Errors and warnings
+    Info,   // Basic information (default)
+    Debug,  // Detailed information
+    Trace,  // All information including raw data
+}
+
+#[derive(Debug, Clone)]
+pub struct LogConfig {
+    pub level: LogLevel,              // Log level
+    pub log_requests: bool,           // Log request parameters
+    pub log_responses: bool,          // Log response content
+    pub log_sensitive_data: bool,     // Log sensitive data (tokens)
+    pub log_performance: bool,        // Log performance metrics
+}
+```
+
+## 🔧 Advanced Usage
+
+### Processing Response Data
+
+```rust
+let response = client.call_api(request!(Api::StockBasic, {
+    "list_status" => "L"
+}, [
+    "ts_code", "name", "industry"
+])).await?;
+
+// Access field names
+println!("Fields: {:?}", response.data.fields);
+
+// Process each data row
+for item in response.data.items {
+    if item.len() >= 3 {
+        println!("Stock: {} - {} ({})", item[0], item[1], item[2]);
+    }
+}
+```
+
+### Custom API Usage
+
+```rust
+// For APIs not yet included in the enum
+let response = client.call_api(request!(Api::Custom("new_api".to_string()), {
+    "param1" => "value1"
+}, [
+    "field1", "field2"
+])).await?;
+```
+
+## 🔍 Examples
+
+Check out the `examples/` directory for complete working examples:
+
+```bash
+# Run basic usage example
+cargo run --example logging_example
+
+# Run tracing integration example
+cargo run --example tracing_example --features tracing
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📞 Support
+
+- 📖 [Documentation](https://docs.rs/tushare-api)
+- 🐛 [Issue Tracker](https://github.com/rock117/tushare-api/issues)
+- 💬 [Discussions](https://github.com/rock117/tushare-api/discussions)

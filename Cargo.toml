@@ -1,7 +1,15 @@
 [package]
 name = "tushare-api"
-version = "0.1.0"
-edition = "2024"
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+description = "A comprehensive Rust client library for accessing Tushare financial data APIs"
+repository = "https://github.com/rock117/tushare-api"
+homepage = "https://github.com/rock117/tushare-api"
+documentation = "https://docs.rs/tushare-api"
+keywords = ["tushare", "finance", "api", "stock", "data"]
+categories = ["api-bindings", "web-programming::http-client", "tushare"]
+authors = ["rock huang <manj22@163.com>"]
 
 [lib]
 name = "tushare_api"

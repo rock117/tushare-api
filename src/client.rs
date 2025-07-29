@@ -9,6 +9,71 @@ use serde::{Serialize};
 use serde_json;
 use uuid::Uuid;
 
+/// HTTP client configuration for reqwest::Client
+#[derive(Debug, Clone)]
+pub struct HttpClientConfig {
+    /// Connection timeout duration
+    pub connect_timeout: Duration,
+    /// Request timeout duration
+    pub timeout: Duration,
+    /// Maximum idle connections per host
+    pub pool_max_idle_per_host: usize,
+    /// Pool idle timeout duration
+    pub pool_idle_timeout: Duration,
+}
+
+impl Default for HttpClientConfig {
+    fn default() -> Self {
+        Self {
+            connect_timeout: Duration::from_secs(10),
+            timeout: Duration::from_secs(30),
+            pool_max_idle_per_host: 10,
+            pool_idle_timeout: Duration::from_secs(30),
+        }
+    }
+}
+
+impl HttpClientConfig {
+    /// Create a new HTTP client configuration with default values
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    /// Set connection timeout
+    pub fn with_connect_timeout(mut self, timeout: Duration) -> Self {
+        self.connect_timeout = timeout;
+        self
+    }
+    
+    /// Set request timeout
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+    
+    /// Set maximum idle connections per host
+    pub fn with_pool_max_idle_per_host(mut self, max_idle: usize) -> Self {
+        self.pool_max_idle_per_host = max_idle;
+        self
+    }
+    
+    /// Set pool idle timeout
+    pub fn with_pool_idle_timeout(mut self, timeout: Duration) -> Self {
+        self.pool_idle_timeout = timeout;
+        self
+    }
+    
+    /// Build reqwest::Client with this configuration
+    pub(crate) fn build_client(&self) -> Result<Client, reqwest::Error> {
+        Client::builder()
+            .connect_timeout(self.connect_timeout)
+            .timeout(self.timeout)
+            .pool_max_idle_per_host(self.pool_max_idle_per_host)
+            .pool_idle_timeout(self.pool_idle_timeout)
+            .build()
+    }
+}
+
 /// Internal request structure with token included
 #[derive(Debug, Serialize)]
 struct InternalTushareRequest {
@@ -31,8 +96,7 @@ pub struct TushareClient {
 #[derive(Debug)]
 pub struct TushareClientBuilder {
     token: Option<String>,
-    connect_timeout: Option<Duration>,
-    timeout: Option<Duration>,
+    http_config: HttpClientConfig,
     log_config: LogConfig,
 }
 
@@ -40,8 +104,7 @@ impl TushareClientBuilder {
     pub fn new() -> Self {
         Self {
             token: None,
-            connect_timeout: None,
-            timeout: None,
+            http_config: HttpClientConfig::default(),
             log_config: LogConfig::default(),
         }
     }
@@ -52,12 +115,30 @@ impl TushareClientBuilder {
     }
 
     pub fn with_connect_timeout(mut self, connect_timeout: Duration) -> Self {
-        self.connect_timeout = Some(connect_timeout);
+        self.http_config = self.http_config.with_connect_timeout(connect_timeout);
         self
     }
 
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = Some(timeout);
+        self.http_config = self.http_config.with_timeout(timeout);
+        self
+    }
+    
+    /// Set HTTP client configuration
+    pub fn with_http_config(mut self, http_config: HttpClientConfig) -> Self {
+        self.http_config = http_config;
+        self
+    }
+    
+    /// Set maximum idle connections per host
+    pub fn with_pool_max_idle_per_host(mut self, max_idle: usize) -> Self {
+        self.http_config = self.http_config.with_pool_max_idle_per_host(max_idle);
+        self
+    }
+    
+    /// Set pool idle timeout
+    pub fn with_pool_idle_timeout(mut self, timeout: Duration) -> Self {
+        self.http_config = self.http_config.with_pool_idle_timeout(timeout);
         self
     }
 
@@ -98,14 +179,9 @@ impl TushareClientBuilder {
 
     pub fn build(self) -> TushareResult<TushareClient> {
         let token = self.token.ok_or(TushareError::InvalidToken)?;
-        let connect_timeout = self.connect_timeout.unwrap_or(Duration::from_secs(10));
-        let timeout = self.timeout.unwrap_or(Duration::from_secs(30));
-
-        let client = Client::builder()
-            .connect_timeout(connect_timeout)
-            .timeout(timeout)
-            .build()
-            .expect("Failed to create HTTP client");
+        
+        let client = self.http_config.build_client()
+            .map_err(TushareError::HttpError)?;
 
         Ok(TushareClient {
             token,
@@ -226,13 +302,14 @@ impl TushareClient {
     /// );
     /// ```
     pub fn with_timeout(token: &str, connect_timeout: Duration, timeout: Duration) -> Self {
-        let client = Client::builder()
-            .connect_timeout(connect_timeout)
-            .timeout(timeout)
-            .build()
+        let http_config = HttpClientConfig::new()
+            .with_connect_timeout(connect_timeout)
+            .with_timeout(timeout);
+            
+        let client = http_config.build_client()
             .expect("Failed to create HTTP client");
 
-        Self {
+        TushareClient {
             token: token.to_string(),
             client,
             logger: Logger::new(LogConfig::default()),
