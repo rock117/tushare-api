@@ -23,10 +23,10 @@
 
 ```toml
 [dependencies]
-tushare-api = "1.0.0"
+tushare-api = "1.0.1"
 
 # 可选：启用 tracing 支持
-# tushare-api = { version = "1.0.0", features = ["tracing"] }
+# tushare-api = { version = "1.0.1", features = ["tracing"] }
 ```
 
 ## 🚀 快速开始
@@ -231,7 +231,7 @@ let client = TushareClient::builder()
 
 ```toml
 [dependencies]
-tushare-api = { version = "1.0.0", features = ["tracing"] }
+tushare-api = { version = "1.0.1", features = ["tracing"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 ```
