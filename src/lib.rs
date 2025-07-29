@@ -120,4 +120,41 @@ mod tests {
         assert_eq!(Api::FundDaily.name(), "fund_daily");
         assert_eq!(Api::Custom("custom_api".to_string()).name(), "custom_api");
     }
+
+    #[test]
+    fn test_generic_conversion_trait() {
+        // Test that we can define a custom type that converts from TushareResponse
+        #[derive(Debug, PartialEq)]
+        struct CustomData {
+            count: usize,
+        }
+
+        impl TryFrom<TushareResponse> for CustomData {
+            type Error = TushareError;
+
+            fn try_from(response: TushareResponse) -> Result<Self, Self::Error> {
+                Ok(CustomData {
+                    count: response.data.items.len(),
+                })
+            }
+        }
+
+        // Create a mock TushareResponse
+        let response = TushareResponse {
+            request_id: "test".to_string(),
+            code: 0,
+            msg: None,
+            data: TushareData {
+                fields: vec!["field1".to_string()],
+                items: vec![
+                    vec![serde_json::Value::String("value1".to_string())],
+                    vec![serde_json::Value::String("value2".to_string())],
+                ],
+            },
+        };
+
+        // Test the conversion
+        let custom_data = CustomData::try_from(response).unwrap();
+        assert_eq!(custom_data.count, 2);
+    }
 }
