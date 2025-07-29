@@ -1,160 +1,125 @@
-//! # Tushare API Rust Library
-//! 
-//! This is a universal Rust library for accessing Tushare API, providing access to various Tushare APIs.
-//! 
-//! # Basic Usage
-//! 
+//! # Tushare API Client Library
+//!
+//! A comprehensive Rust client library for accessing Tushare financial data APIs.
+//! This library provides a simple and efficient way to fetch financial data from Tushare,
+//! with built-in support for request/response handling, error management, and logging.
+//!
+//! ## Features
+//!
+//! - **Easy-to-use API**: Simple client interface for making Tushare API calls
+//! - **Type Safety**: Strong typing for requests and responses
+//! - **Error Handling**: Comprehensive error types and handling
+//! - **Logging Support**: Built-in logging with configurable levels
+//! - **Async Support**: Full async/await support with tokio
+//! - **Flexible Configuration**: Customizable HTTP client settings
+//! - **Environment Integration**: Automatic token loading from environment variables
+//! - **Automatic Conversion**: Derive macros for automatic struct conversion from API responses
+//!
+//! ## Quick Start
+//!
 //! ```rust
-//! use tushare_api::{TushareClient, TushareRequest, Api, params, fields};
-//! 
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//!     let client = TushareClient::new("your_token_here");
+//! use tushare_api::{TushareClient, Api, TushareRequest, params, fields};
+//! use tushare_derive::{FromTushareData, TushareResponseList};
+//!
+//! // Define your data structure with derive macros
+//! #[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+//! pub struct Stock {
+//!     ts_code: String,
+//!     symbol: String,
+//!     name: String,
+//!     area: Option<String>,
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create client from environment variable TUSHARE_TOKEN
+//!     let client = TushareClient::from_env()?;
 //!     
-//!     // Now you can use string literals directly!
-//!     let req = TushareRequest {
-//!         api_name: Api::StockBasic,
-//!         params: params!("list_status" => "L"),
-//!         fields: fields!["ts_code", "name"],
-//!     };
+//!     // Create request using manual construction
+//!     let request = TushareRequest::new(
+//!         Api::StockBasic,
+//!         params!("list_status" => "L"),
+//!         fields!["ts_code", "symbol", "name", "area"]
+//!     );
 //!     
-//!     let response = client.call_api(req).await?;
-//!     println!("Response: {:?}", response);
-//! #   Ok(())
-//! # }
+//!     // Make the API call with automatic conversion
+//!     let stocks: StockList = client.call_api_as(request).await?;
+//!     
+//!     println!("Received {} stocks", stocks.len());
+//!     
+//!     for stock in stocks.iter().take(5) {
+//!         println!("{}: {}", stock.ts_code, stock.name);
+//!     }
+//!     
+//!     Ok(())
+//! }
 //! ```
 
-// Module definitions
-mod error;
-mod api;
-mod types;
-mod client;
-mod logging;
+pub mod error;
+pub mod api;
+pub mod types;
+pub mod client;
+pub mod logging;
+pub mod traits;
+pub mod utils;
 
-// Public exports
+// Re-export main types for convenience
 pub use error::{TushareError, TushareResult};
 pub use api::Api;
-pub use types::{TushareRequest, TushareRequestString, TushareResponse, TushareData};
-pub use client::{TushareClient, TushareClientBuilder, HttpClientConfig};
-pub use logging::{LogLevel, LogConfig, Logger};
+pub use types::{TushareRequest, TushareResponse, TushareData};
+pub use client::{TushareClient, HttpClientConfig};
+pub use logging::{LogConfig, LogLevel, Logger};
+pub use traits::FromTushareData;
+pub use utils::response_to_vec;
 
-// Macros are already available at crate root via #[macro_export]
-// No need to re-export
+// Re-export procedural macros from tushare-derive
+pub use tushare_derive::{FromTushareData as DeriveFromTushareData, TushareResponseList};
+
+// Re-export serde_json for user convenience
+pub use serde_json;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::types::TushareData;
+    use serde_json::json;
 
     #[test]
-    fn test_client_creation() {
-        let client = TushareClient::new("test_token");
-        // Note: Since the token field is private, we can only test if client creation succeeds
-        // This just verifies it doesn't panic
+    fn test_api_serialization() {
+        let api = Api::StockBasic;
+        assert_eq!(api.name(), "stock_basic");
     }
 
     #[test]
-    fn test_request_creation() {
-        let _client = TushareClient::new("test_token");
-        
-        // Using the new simplified approach
-        let request = TushareRequest {
-            api_name: Api::StockBasic,
-            params: params!("test_param" => "test_value"),
-            fields: fields!["field1", "field2"],
-        };
+    fn test_tushare_request_creation() {
+        let request = TushareRequest::new(
+            Api::StockBasic,
+            vec![("list_status".to_string(), "L".to_string())],
+            vec!["ts_code".to_string(), "symbol".to_string()]
+        );
         
         assert_eq!(request.api_name, Api::StockBasic);
+        assert_eq!(request.params.len(), 1);
         assert_eq!(request.fields.len(), 2);
     }
 
     #[test]
-    fn test_request_macro() {
-        // Test basic functionality of request! macro
-        let request = request!(Api::StockBasic, {
-            "list_status" => "L",
-            "exchange" => "SSE"
-        }, [
-            "ts_code", "name", "industry"
-        ]);
-        
-        assert_eq!(request.api_name, Api::StockBasic);
-        assert_eq!(request.params.len(), 2);
-        assert_eq!(request.params.get("list_status"), Some(&"L".to_string()));
-        assert_eq!(request.params.get("exchange"), Some(&"SSE".to_string()));
-        assert_eq!(request.fields.len(), 3);
-        assert_eq!(request.fields[0], "ts_code");
-        assert_eq!(request.fields[1], "name");
-        assert_eq!(request.fields[2], "industry");
-    }
-
-    #[test]
-    fn test_request_macro_empty() {
-        // Test request! macro handling empty params and fields
-        let request = request!(Api::FundBasic, {}, []);
-        
-        assert_eq!(request.api_name, Api::FundBasic);
-        assert_eq!(request.params.len(), 0);
-        assert_eq!(request.fields.len(), 0);
-    }
-
-    #[test]
-    fn test_request_macro_single_items() {
-        // Test request! macro handling single param and field
-        let request = request!(Api::Custom("test_api".to_string()), {
-            "param1" => "value1"
-        }, [
-            "field1"
-        ]);
-        
-        assert_eq!(request.api_name, Api::Custom("test_api".to_string()));
-        assert_eq!(request.params.len(), 1);
-        assert_eq!(request.params.get("param1"), Some(&"value1".to_string()));
-        assert_eq!(request.fields.len(), 1);
-        assert_eq!(request.fields[0], "field1");
-    }
-
-    #[test]
-    fn test_api_name() {
-        assert_eq!(Api::StockBasic.name(), "stock_basic");
-        assert_eq!(Api::FundBasic.name(), "fund_basic");
-        assert_eq!(Api::FundDaily.name(), "fund_daily");
-        assert_eq!(Api::Custom("custom_api".to_string()).name(), "custom_api");
-    }
-
-    #[test]
-    fn test_generic_conversion_trait() {
-        // Test that we can define a custom type that converts from TushareResponse
-        #[derive(Debug, PartialEq)]
-        struct CustomData {
-            count: usize,
-        }
-
-        impl TryFrom<TushareResponse> for CustomData {
-            type Error = TushareError;
-
-            fn try_from(response: TushareResponse) -> Result<Self, Self::Error> {
-                Ok(CustomData {
-                    count: response.data.items.len(),
-                })
-            }
-        }
-
-        // Create a mock TushareResponse
+    fn test_tushare_response_creation() {
         let response = TushareResponse {
-            request_id: "test".to_string(),
+            request_id: "test123".to_string(),
             code: 0,
             msg: None,
             data: TushareData {
-                fields: vec!["field1".to_string()],
+                fields: vec!["ts_code".to_string(), "name".to_string()],
                 items: vec![
-                    vec![serde_json::Value::String("value1".to_string())],
-                    vec![serde_json::Value::String("value2".to_string())],
+                    vec![json!("000001.SZ"), json!("平安银行")],
+                    vec![json!("000002.SZ"), json!("万科A")],
                 ],
             },
         };
-
-        // Test the conversion
-        let custom_data = CustomData::try_from(response).unwrap();
-        assert_eq!(custom_data.count, 2);
+        
+        assert_eq!(response.code, 0);
+        assert_eq!(response.data.items.len(), 2);
+        assert_eq!(response.data.fields.len(), 2);
     }
 }

@@ -115,4 +115,6 @@ pub struct TushareResponse {
 pub struct TushareData {
     pub fields: Vec<String>,
     pub items: Vec<Vec<serde_json::Value>>,
+    pub has_more: bool,
+    pub count: i64,
 }
