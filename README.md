@@ -23,10 +23,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tushare-api = "1.0.1"
+tushare-api = "1.0.2"
 
 # Optional: Enable tracing support
-# tushare-api = { version = "1.0.1", features = ["tracing"] }
+# tushare-api = { version = "1.0.2", features = ["tracing"] }
 ```
 
 ## 🚀 Quick Start
@@ -254,7 +254,7 @@ First, enable the tracing feature in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tushare-api = { version = "1.0.1", features = ["tracing"] }
+tushare-api = { version = "1.0.2", features = ["tracing"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 ```
@@ -286,7 +286,7 @@ If you want to use `tracing` but the library is compiled without the tracing fea
 
 ```toml
 [dependencies]
-tushare-api = "1.0.1"  # Without tracing feature
+tushare-api = "1.0.2"  # Without tracing feature
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-log = "0.2"
