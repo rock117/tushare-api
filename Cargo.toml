@@ -1,6 +1,6 @@
 [package]
 name = "tushare-api"
-version = "1.0.2"
+version = "1.1.0"
 edition = "2024"
 license = "MIT"
 description = "A comprehensive Rust client library for accessing Tushare financial data APIs"
@@ -15,17 +15,22 @@ authors = ["rock huang <manj22@163.com>"]
 name = "tushare_api"
 path = "src/lib.rs"
 
+[workspace]
+members = [".", "tushare-derive"]
+
 [dependencies]
-reqwest = { version = "0.12.12", features = ["json"] }
+reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-log = "0.4"
 uuid = { version = "1.0", features = ["v4"] }
+log = "0.4"
+env_logger = "0.10"
+tushare-derive = { path = "tushare-derive" }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", optional = true }
 tracing-log = { version = "0.2", optional = true }
 
 [features]
 default = []
-tracing = ["dep:tracing", "dep:tracing-subscriber"]
+tracing = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-log"]

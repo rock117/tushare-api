@@ -205,7 +205,181 @@ let request = TushareRequest {
 let response = client.call_api(request).await?;
 ```
 
-### 4. 如何设置日志
+### 4. 使用过程宏自动转换结构体
+
+该库提供了强大的过程宏，可以自动将 Tushare API 响应转换为强类型的 Rust 结构体，无需手动解析。
+
+#### 使用过程宏
+
+```rust
+use tushare_api::{TushareClient, Api, request};
+use tushare_derive::{FromTushareData, TushareResponseList};
+
+// 使用自动转换定义您的结构体
+#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+pub struct Stock {
+    pub ts_code: String,
+    pub symbol: String,
+    pub name: String,
+    pub area: Option<String>,
+    pub industry: Option<String>,
+    pub market: String,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = TushareClient::from_env()?;
+    
+    // 方法 1：使用 call_api_as 进行直接转换
+    let stocks: StockList = client.call_api_as(request!(Api::StockBasic, {
+        "list_status" => "L",
+        "exchange" => "SSE"
+    }, [
+        "ts_code", "symbol", "name", "area", "industry", "market"
+    ])).await?;
+    
+    // 直接访问数据
+    println!("找到 {} 只股票:", stocks.len());
+    for stock in stocks.iter().take(5) {
+        println!("  {}: {} ({})", stock.ts_code, stock.name, stock.market);
+    }
+    
+    Ok(())
+}
+```
+
+#### 字段映射和可选字段
+
+```rust
+use tushare_derive::{FromTushareData, TushareResponseList};
+
+// 带字段映射和可选字段的高级结构体
+#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+pub struct StockInfo {
+    pub ts_code: String,
+    
+    // 将 API 字段 "symbol" 映射到结构体字段 "stock_symbol"
+    #[tushare(field = "symbol")]
+    pub stock_symbol: String,
+    
+    pub name: String,
+    
+    // 可选字段会自动处理
+    pub area: Option<String>,
+    pub industry: Option<String>,
+    
+    // 跳过 API 响应中不存在的字段
+    #[tushare(skip)]
+    pub calculated_value: f64,
+}
+
+// 宏会自动生成 StockInfoList 包装类型
+impl Default for StockInfo {
+    fn default() -> Self {
+        Self {
+            ts_code: String::new(),
+            stock_symbol: String::new(),
+            name: String::new(),
+            area: None,
+            industry: None,
+            calculated_value: 0.0,
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = TushareClient::from_env()?;
+    
+    let stock_info: StockInfoList = client.call_api_as(request!(Api::StockBasic, {
+        "list_status" => "L"
+    }, [
+        "ts_code", "symbol", "name", "area", "industry"
+    ])).await?;
+    
+    for info in stock_info.iter().take(3) {
+        println!("股票: {} ({}) - 行业: {:?}", 
+                 info.name, info.stock_symbol, info.industry);
+    }
+    
+    Ok(())
+}
+```
+
+#### 支持的字段类型
+
+过程宏支持以下 Rust 类型：
+
+- `String` - 必需的字符串字段
+- `Option<String>` - 可选的字符串字段
+- `f64` - 必需的浮点数
+- `Option<f64>` - 可选的浮点数
+- `i64` - 必需的整数
+- `Option<i64>` - 可选的整数
+- `bool` - 必需的布尔值
+- `Option<bool>` - 可选的布尔值
+
+#### 手动转换（替代方法）
+
+如果您不想使用过程宏，仍然可以使用手动方法：
+
+```rust
+use tushare_api::{TushareClient, Api, request, utils::response_to_vec, traits::FromTushareData};
+use tushare_api::error::TushareError;
+use serde_json::Value;
+
+#[derive(Debug, Clone)]
+pub struct Stock {
+    pub ts_code: String,
+    pub name: String,
+    pub area: Option<String>,
+}
+
+// 手动实现 FromTushareData
+impl FromTushareData for Stock {
+    fn from_row(fields: &[String], values: &[Value]) -> Result<Self, TushareError> {
+        let ts_code_idx = fields.iter().position(|f| f == "ts_code")
+            .ok_or_else(|| TushareError::ParseError("缺少 ts_code 字段".to_string()))?;
+        let name_idx = fields.iter().position(|f| f == "name")
+            .ok_or_else(|| TushareError::ParseError("缺少 name 字段".to_string()))?;
+        let area_idx = fields.iter().position(|f| f == "area");
+            
+        Ok(Stock {
+            ts_code: values[ts_code_idx].as_str()
+                .ok_or_else(|| TushareError::ParseError("无效的 ts_code".to_string()))?
+                .to_string(),
+            name: values[name_idx].as_str()
+                .ok_or_else(|| TushareError::ParseError("无效的 name".to_string()))?
+                .to_string(),
+            area: area_idx.and_then(|idx| values[idx].as_str().map(|s| s.to_string())),
+        })
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = TushareClient::from_env()?;
+    
+    // 获取原始响应
+    let response = client.call_api(request!(Api::StockBasic, {
+        "list_status" => "L"
+    }, [
+        "ts_code", "name", "area"
+    ])).await?;
+    
+    // 转换为 Vec<Stock>
+    let stocks = response_to_vec::<Stock>(response)?;
+    
+    println!("找到 {} 只股票", stocks.len());
+    for stock in stocks.iter().take(3) {
+        println!("  {}: {} - 地区: {:?}", stock.ts_code, stock.name, stock.area);
+    }
+    
+    Ok(())
+}
+```
+
+### 5. 如何设置日志
 
 #### 使用 `env_logger`
 
@@ -288,7 +462,7 @@ DEBUG [abc123] Received HTTP response, status code: 200
 INFO  [abc123] API call successful, duration: 245ms, data rows returned: 100
 ```
 
-### 5. 主要数据结构
+### 6. 主要数据结构
 
 #### TushareClient
 
@@ -309,6 +483,9 @@ impl TushareClient {
     
     // API 调用方法
     pub async fn call_api(&self, request: TushareRequest) -> TushareResult<TushareResponse>;
+    pub async fn call_api_as<T>(&self, request: TushareRequest) -> TushareResult<T>
+    where
+        T: TryFrom<TushareResponse, Error = TushareError>;
 }
 ```
 

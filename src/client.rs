@@ -20,6 +20,12 @@ pub struct HttpClientConfig {
     pub pool_max_idle_per_host: usize,
     /// Pool idle timeout duration
     pub pool_idle_timeout: Duration,
+    /// User agent string
+    pub user_agent: Option<String>,
+    /// Enable TCP_NODELAY to reduce latency
+    pub tcp_nodelay: bool,
+    /// TCP keep-alive duration
+    pub tcp_keepalive: Option<Duration>,
 }
 
 impl Default for HttpClientConfig {
@@ -27,8 +33,11 @@ impl Default for HttpClientConfig {
         Self {
             connect_timeout: Duration::from_secs(10),
             timeout: Duration::from_secs(30),
-            pool_max_idle_per_host: 10,
-            pool_idle_timeout: Duration::from_secs(30),
+            pool_max_idle_per_host: 20,  // Increased for better performance
+            pool_idle_timeout: Duration::from_secs(90),  // Longer idle timeout
+            user_agent: Some("tushare-api-rust/1.0.0".to_string()),
+            tcp_nodelay: true,  // Reduce latency
+            tcp_keepalive: Some(Duration::from_secs(60)),  // Keep connections alive
         }
     }
 }
@@ -63,14 +72,42 @@ impl HttpClientConfig {
         self
     }
     
+    /// Set user agent string
+    pub fn with_user_agent<S: Into<String>>(mut self, user_agent: S) -> Self {
+        self.user_agent = Some(user_agent.into());
+        self
+    }
+    
+    /// Enable or disable TCP_NODELAY
+    pub fn with_tcp_nodelay(mut self, enabled: bool) -> Self {
+        self.tcp_nodelay = enabled;
+        self
+    }
+    
+    /// Set TCP keep-alive duration
+    pub fn with_tcp_keepalive(mut self, duration: Option<Duration>) -> Self {
+        self.tcp_keepalive = duration;
+        self
+    }
+    
     /// Build reqwest::Client with this configuration
     pub(crate) fn build_client(&self) -> Result<Client, reqwest::Error> {
-        Client::builder()
+        let mut builder = Client::builder()
             .connect_timeout(self.connect_timeout)
             .timeout(self.timeout)
             .pool_max_idle_per_host(self.pool_max_idle_per_host)
             .pool_idle_timeout(self.pool_idle_timeout)
-            .build()
+            .tcp_nodelay(self.tcp_nodelay);
+            
+        if let Some(ref user_agent) = self.user_agent {
+            builder = builder.user_agent(user_agent);
+        }
+        
+        if let Some(keepalive) = self.tcp_keepalive {
+            builder = builder.tcp_keepalive(keepalive);
+        }
+        
+        builder.build()
     }
 }
 
@@ -434,5 +471,72 @@ impl TushareClient {
         );
 
         Ok(tushare_response)
+    }
+
+    /// Call Tushare API with automatic type conversion
+    /// 
+    /// This method allows you to specify the return type directly, which will be
+    /// automatically converted from TushareResponse using the TryFrom trait.
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `T` - The target type that implements `TryFrom<TushareResponse>`
+    /// 
+    /// # Arguments
+    /// 
+    /// * `request` - API request parameters
+    /// 
+    /// # Returns
+    /// 
+    /// Returns the converted result of type T
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use tushare_api::{TushareClient, TushareRequest, TushareResponse, TushareError, Api, request, params, fields};
+    /// use serde::Deserialize;
+    /// 
+    /// // Define a custom wrapper type to avoid orphan rule violations
+    /// #[derive(Debug)]
+    /// struct StockList(Vec<StockInfo>);
+    /// 
+    /// #[derive(Debug, Deserialize)]
+    /// struct StockInfo {
+    ///     ts_code: String,
+    ///     name: String,
+    /// }
+    /// 
+    /// impl TryFrom<TushareResponse> for StockList {
+    ///     type Error = TushareError;
+    ///     
+    ///     fn try_from(response: TushareResponse) -> Result<Self, Self::Error> {
+    ///         // Convert TushareResponse to StockList
+    ///         // This is just an example - real implementation would parse the data
+    ///         Ok(StockList(vec![]))
+    ///     }
+    /// }
+    /// 
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = TushareClient::new("your_token_here");
+    ///     
+    ///     let request = request!(Api::StockBasic, {
+    ///         "list_status" => "L"
+    ///     }, [
+    ///         "ts_code", "name"
+    ///     ]);
+    ///     
+    ///     // Directly get the converted type
+    ///     let stocks: StockList = client.call_api_as(request).await?;
+    ///     println!("Stocks: {:?}", stocks);
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub async fn call_api_as<T>(&self, request: TushareRequest) -> TushareResult<T>
+    where
+        T: TryFrom<TushareResponse>,
+        T::Error: Into<TushareError>,
+    {
+        let response = self.call_api(request).await?;
+        T::try_from(response).map_err(|e| e.into())
     }
 }
