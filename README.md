@@ -234,10 +234,10 @@ The library provides powerful procedural macros to automatically convert Tushare
 
 ```rust
 use tushare_api::{TushareClient, Api, request, TushareEntityList};
-use tushare_derive::FromTushareData;
+use tushare_api::DeriveFromTushareData;
 
 // Define your struct with automatic conversion
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub symbol: String,
@@ -278,10 +278,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use tushare_api::{TushareClient, Api, request, TushareEntityList};
-use tushare_derive::FromTushareData;
+use tushare_api::DeriveFromTushareData;
 
 // Advanced struct with field mapping and optional fields
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct StockInfo {
     pub ts_code: String,
     
@@ -339,7 +339,7 @@ When you use the new generic pagination container, you get a clean, type-safe in
 
 ```rust
 // Your original struct
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub name: String,
@@ -384,10 +384,9 @@ The generic `TushareEntityList<T>` container provides built-in pagination suppor
 - `count: i64` - Total number of records
 
 ```rust
-use tushare_api::{TushareClient, Api, request};
-use tushare_derive::FromTushareData;
+use tushare_api::{TushareClient, Api, request, DeriveFromTushareData};
 
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub name: String,

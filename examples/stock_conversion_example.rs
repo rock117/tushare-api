@@ -1,7 +1,7 @@
 use tushare_api::{TushareClient, Api, request, TushareEntityList, TushareRequest, params, fields};
-use tushare_derive::FromTushareData;
+use tushare_api::DeriveFromTushareData;
 
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 struct Stock {
     ts_code: String,
     symbol: String,

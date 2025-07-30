@@ -497,10 +497,9 @@ impl TushareClient {
     /// # Example
     /// 
     /// ```rust
-    /// use tushare_api::{TushareClient, Api, request, TushareEntityList, params, fields, TushareRequest};
-    /// use tushare_derive::FromTushareData;
-    /// 
-    /// #[derive(Debug, Clone, FromTushareData)]
+    /// use tushare_api::{TushareClient, Api, request, TushareEntityList, params, fields, TushareRequest, DeriveFromTushareData};
+
+    /// #[derive(Debug, Clone, DeriveFromTushareData)]
     /// pub struct Stock {
     ///     pub ts_code: String,
     ///     pub name: String,

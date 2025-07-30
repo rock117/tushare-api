@@ -1,8 +1,8 @@
 use tushare_api::{TushareClient, Api, request, TushareEntityList, TushareRequest, params, fields};
-use tushare_derive::FromTushareData;
+use tushare_api::DeriveFromTushareData;
 
 /// 股票基本信息
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 struct Stock {
     /// 股票代码
     ts_code: String,
@@ -21,7 +21,7 @@ struct Stock {
 }
 
 /// 股票日线数据
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 struct StockDaily {
     /// 股票代码
     ts_code: String,
@@ -48,7 +48,7 @@ struct StockDaily {
 }
 
 /// 简单股票信息
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 struct SimpleStock {
     ts_code: String,
     symbol: String,
@@ -56,7 +56,7 @@ struct SimpleStock {
 }
 
 /// 基金基本信息
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 struct Fund {
     /// 基金代码
     ts_code: String,

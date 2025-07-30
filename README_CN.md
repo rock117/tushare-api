@@ -213,10 +213,10 @@ let response = client.call_api(request).await?;
 
 ```rust
 use tushare_api::{TushareClient, Api, request, TushareEntityList};
-use tushare_derive::FromTushareData;
+use tushare_api::DeriveFromTushareData;
 
 // 使用自动转换定义您的结构体
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub symbol: String,
@@ -256,10 +256,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #### 字段映射和可选字段
 
 ```rust
-use tushare_derive::FromTushareData;
+use tushare_api::DeriveFromTushareData;
 
 // 带字段映射和可选字段的高级结构体
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct StockInfo {
     pub ts_code: String,
     
@@ -317,7 +317,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 // 您的原始结构体
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub name: String,
@@ -363,9 +363,9 @@ let stocks = client.call_api_as::<Stock>(request).await?;
 
 ```rust
 use tushare_api::{TushareClient, Api, request, TushareEntityList};
-use tushare_derive::FromTushareData;
+use tushare_api::DeriveFromTushareData;
 
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub name: String,

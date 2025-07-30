@@ -19,10 +19,10 @@
 //!
 //! ```no_run
 //! use tushare_api::{TushareClient, Api, TushareRequest, TushareEntityList, params, fields};
-//! use tushare_derive::FromTushareData;
+//! use tushare_api::DeriveFromTushareData;
 //!
 //! // Define your data structure with derive macro
-//! #[derive(Debug, Clone, FromTushareData)]
+//! #[derive(Debug, Clone, DeriveFromTushareData)]
 //! pub struct Stock {
 //!     ts_code: String,
 //!     symbol: String,

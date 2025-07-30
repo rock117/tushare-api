@@ -51,9 +51,9 @@ use serde_json::Value;
 /// For most use cases, you can use the derive macro instead of manual implementation:
 /// 
 /// ```rust
-/// use tushare_derive::FromTushareData;
+/// use tushare_api::DeriveFromTushareData;
 /// 
-/// #[derive(Debug, Clone, FromTushareData)]
+/// #[derive(Debug, Clone, DeriveFromTushareData)]
 /// pub struct Stock {
 ///     ts_code: String,
 ///     name: String,

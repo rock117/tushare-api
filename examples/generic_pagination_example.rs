@@ -1,7 +1,7 @@
 use tushare_api::{TushareClient, Api, request, TushareEntityList};
-use tushare_derive::FromTushareData;
+use tushare_api::DeriveFromTushareData;
 
-#[derive(Debug, Clone, FromTushareData)]
+#[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub name: String,
