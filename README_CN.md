@@ -23,10 +23,10 @@
 
 ```toml
 [dependencies]
-tushare-api = "1.0.2"
+tushare-api = "1.1.0"
 
 # 可选：启用 tracing 支持
-# tushare-api = { version = "1.0.2", features = ["tracing"] }
+# tushare-api = { version = "1.1.0", features = ["tracing"] }
 ```
 
 ## 🚀 快速开始
@@ -244,6 +244,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  {}: {} ({})", stock.ts_code, stock.name, stock.market);
     }
     
+    // 访问分页信息
+    println!("当前页面: {} 条记录", stocks.len());
+    println!("总记录数: {}", stocks.count());
+    println!("是否还有更多页面: {}", stocks.has_more());
+    
     Ok(())
 }
 ```
@@ -301,6 +306,101 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("股票: {} ({}) - 行业: {:?}", 
                  info.name, info.stock_symbol, info.industry);
     }
+    
+    Ok(())
+}
+```
+
+#### 生成的结构体说明
+
+当您在结构体上使用 `TushareResponseList` 宏时，它会自动生成对应的包装类型。具体过程如下：
+
+```rust
+// 您的原始结构体
+#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+pub struct Stock {
+    pub ts_code: String,
+    pub name: String,
+    pub area: Option<String>,
+}
+
+// 宏会自动生成这个包装结构体：
+pub struct StockList {
+    pub items: Vec<Stock>,        // 您的数据项
+    pub has_more: bool,           // 分页：是否还有更多页面？
+    pub count: i64,               // 分页：总记录数
+}
+```
+
+**当您调用：**
+```rust
+let stocks: StockList = client.call_api_as(request).await?;
+// 或者
+let stocks = client.call_api_as::<StockList>(request).await?;
+```
+
+**您会得到一个 `StockList` 结构体，包含：**
+- **`items`** - `Vec<Stock>` 包含实际转换后的数据
+- **`has_more`** - `bool` 表示是否还有更多页面可获取
+- **`count`** - `i64` 显示可用的总记录数
+
+**以及这些自动生成的方法：**
+- `stocks.len()` - 当前页面的项目数量
+- `stocks.is_empty()` - 当前页面是否为空
+- `stocks.items()` - 获取项目切片
+- `stocks.has_more()` - 检查是否还有更多页面
+- `stocks.count()` - 获取总记录数
+- `stocks.iter()` - 遍历项目（通过 Deref）
+- `for stock in &stocks { ... }` - 直接迭代支持
+
+#### 分页支持
+
+`TushareResponseList` 宏会自动生成带有内置分页支持的包装类型。每个生成的列表类型（如 `StockList`）都包含：
+
+- `items: Vec<T>` - 实际的数据项
+- `has_more: bool` - 是否还有更多页面可用
+- `count: i64` - 总记录数
+
+```rust
+use tushare_api::{TushareClient, Api, request};
+use tushare_derive::{FromTushareData, TushareResponseList};
+
+#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+pub struct Stock {
+    pub ts_code: String,
+    pub name: String,
+    pub area: Option<String>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = TushareClient::from_env()?;
+    
+    // 获取分页结果
+    let stocks: StockList = client.call_api_as(request!(Api::StockBasic, {
+        "list_status" => "L",
+        "limit" => "100",
+        "offset" => "0"
+    }, [
+        "ts_code", "name", "area"
+    ])).await?;
+    
+    // 访问分页信息
+    println!("当前页面: {} 只股票", stocks.len());
+    println!("总可用数量: {} 只股票", stocks.count());
+    println!("是否还有更多页面: {}", stocks.has_more());
+    
+    // 遍历当前页面的项目
+    for stock in &stocks {
+        println!("{}: {} ({})", 
+                 stock.ts_code, 
+                 stock.name, 
+                 stock.area.as_deref().unwrap_or("未知"));
+    }
+    
+    // 直接访问项目
+    let first_stock = &stocks.items()[0];
+    println!("第一只股票: {}", first_stock.name);
     
     Ok(())
 }
@@ -405,7 +505,7 @@ let client = TushareClient::builder()
 
 ```toml
 [dependencies]
-tushare-api = { version = "1.0.2", features = ["tracing"] }
+tushare-api = { version = "1.1.0", features = ["tracing"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 ```

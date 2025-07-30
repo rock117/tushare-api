@@ -23,10 +23,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tushare-api = "1.0.2"
+tushare-api = "1.1.0"
 
 # Optional: Enable tracing support
-# tushare-api = { version = "1.0.2", features = ["tracing"] }
+# tushare-api = { version = "1.1.0", features = ["tracing"] }
 ```
 
 ## 🚀 Quick Start
@@ -265,6 +265,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  {}: {} ({})", stock.ts_code, stock.name, stock.market);
     }
     
+    // Access pagination information
+    println!("Current page: {} items", stocks.len());
+    println!("Total records: {}", stocks.count());
+    println!("Has more pages: {}", stocks.has_more());
+    
     Ok(())
 }
 ```
@@ -322,6 +327,101 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Stock: {} ({}) - Industry: {:?}", 
                  info.name, info.stock_symbol, info.industry);
     }
+    
+    Ok(())
+}
+```
+
+#### Generated Struct Structure
+
+When you use the `TushareResponseList` macro on a struct, it automatically generates a corresponding wrapper type. Here's what happens:
+
+```rust
+// Your original struct
+#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+pub struct Stock {
+    pub ts_code: String,
+    pub name: String,
+    pub area: Option<String>,
+}
+
+// The macro automatically generates this wrapper struct:
+pub struct StockList {
+    pub items: Vec<Stock>,        // Your data items
+    pub has_more: bool,           // Pagination: more pages available?
+    pub count: i64,               // Pagination: total record count
+}
+```
+
+**When you call:**
+```rust
+let stocks: StockList = client.call_api_as(request).await?;
+// OR
+let stocks = client.call_api_as::<StockList>(request).await?;
+```
+
+**You get a `StockList` struct with:**
+- **`items`** - `Vec<Stock>` containing the actual converted data
+- **`has_more`** - `bool` indicating if there are more pages to fetch
+- **`count`** - `i64` showing the total number of records available
+
+**Plus these automatically generated methods:**
+- `stocks.len()` - Number of items in current page
+- `stocks.is_empty()` - Whether current page is empty
+- `stocks.items()` - Get items as slice
+- `stocks.has_more()` - Check if more pages available
+- `stocks.count()` - Get total record count
+- `stocks.iter()` - Iterate over items (via Deref)
+- `for stock in &stocks { ... }` - Direct iteration support
+
+#### Pagination Support
+
+The `TushareResponseList` macro automatically generates wrapper types with built-in pagination support. Each generated list type (e.g., `StockList`) contains:
+
+- `items: Vec<T>` - The actual data items
+- `has_more: bool` - Whether more pages are available
+- `count: i64` - Total number of records
+
+```rust
+use tushare_api::{TushareClient, Api, request};
+use tushare_derive::{FromTushareData, TushareResponseList};
+
+#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+pub struct Stock {
+    pub ts_code: String,
+    pub name: String,
+    pub area: Option<String>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = TushareClient::from_env()?;
+    
+    // Get paginated results
+    let stocks: StockList = client.call_api_as(request!(Api::StockBasic, {
+        "list_status" => "L",
+        "limit" => "100",
+        "offset" => "0"
+    }, [
+        "ts_code", "name", "area"
+    ])).await?;
+    
+    // Access pagination information
+    println!("Current page: {} stocks", stocks.len());
+    println!("Total available: {} stocks", stocks.count());
+    println!("Has more pages: {}", stocks.has_more());
+    
+    // Iterate through current page items
+    for stock in &stocks {
+        println!("{}: {} ({})", 
+                 stock.ts_code, 
+                 stock.name, 
+                 stock.area.as_deref().unwrap_or("Unknown"));
+    }
+    
+    // Access items directly
+    let first_stock = &stocks.items()[0];
+    println!("First stock: {}", first_stock.name);
     
     Ok(())
 }
@@ -428,7 +528,7 @@ First, enable the tracing feature in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tushare-api = { version = "1.0.2", features = ["tracing"] }
+tushare-api = { version = "1.1.0", features = ["tracing"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 ```
@@ -460,7 +560,7 @@ If you want to use `tracing` but the library is compiled without the tracing fea
 
 ```toml
 [dependencies]
-tushare-api = "1.0.2"  # Without tracing feature
+tushare-api = "1.1.0"  # Without tracing feature
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-log = "0.2"

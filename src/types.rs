@@ -102,7 +102,7 @@ macro_rules! request {
 }
 
 /// Tushare API response structure
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TushareResponse {
     pub request_id: String,
     pub code: i32,
@@ -111,7 +111,7 @@ pub struct TushareResponse {
 }
 
 /// Tushare API data structure
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TushareData {
     pub fields: Vec<String>,
     pub items: Vec<Vec<serde_json::Value>>,

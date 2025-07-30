@@ -142,10 +142,17 @@ pub fn derive_from_tushare_data(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// Derive macro for automatically implementing TryFrom<TushareResponse> for Vec<T>
+/// Derive macro for automatically implementing TryFrom<TushareResponse> for wrapper struct
 /// 
-/// This macro generates a wrapper type and implements TryFrom<TushareResponse> for it.
-/// The wrapper type is named by appending "List" to the original struct name.
+/// This macro generates a wrapper type that contains the converted data items along with
+/// pagination information (has_more and count fields from TushareData).
+/// 
+/// # Generated Structure
+/// 
+/// For a struct named `Stock`, this macro generates `StockList` with:
+/// - `items: Vec<Stock>` - The converted data items
+/// - `has_more: bool` - Whether more pages are available
+/// - `count: i64` - Total number of records
 /// 
 /// # Example
 /// 
@@ -159,8 +166,22 @@ pub fn derive_from_tushare_data(input: TokenStream) -> TokenStream {
 /// }
 /// 
 /// // This generates:
-/// // pub struct StockList(pub Vec<Stock>);
+/// // pub struct StockList {
+/// //     pub items: Vec<Stock>,
+/// //     pub has_more: bool,
+/// //     pub count: i64,
+/// // }
 /// // impl TryFrom<TushareResponse> for StockList { ... }
+/// 
+/// // Usage:
+/// let stock_list: StockList = response.try_into()?;
+/// println!("Got {} stocks, has_more: {}, total: {}", 
+///          stock_list.len(), stock_list.has_more(), stock_list.count());
+/// 
+/// // Access items directly via Deref
+/// for stock in &stock_list {
+///     println!("{}: {}", stock.ts_code, stock.name);
+/// }
 /// ```
 #[proc_macro_derive(TushareResponseList)]
 pub fn derive_tushare_response_list(input: TokenStream) -> TokenStream {
@@ -171,20 +192,69 @@ pub fn derive_tushare_response_list(input: TokenStream) -> TokenStream {
     
     let expanded = quote! {
         /// Auto-generated wrapper type for converting TushareResponse to Vec<#name>
+        /// 
+        /// This struct contains:
+        /// - `items`: The list of converted data items
+        /// - `has_more`: Whether there are more pages available
+        /// - `count`: Total number of records available
         #[derive(Debug, Clone)]
-        pub struct #list_name(pub Vec<#name>);
+        pub struct #list_name {
+            /// The list of converted data items
+            pub items: Vec<#name>,
+            /// Whether there are more pages available
+            pub has_more: bool,
+            /// Total number of records available
+            pub count: i64,
+        }
+        
+        impl #list_name {
+            /// Create a new instance with items and pagination info
+            pub fn new(items: Vec<#name>, has_more: bool, count: i64) -> Self {
+                Self { items, has_more, count }
+            }
+            
+            /// Get the items as a slice
+            pub fn items(&self) -> &[#name] {
+                &self.items
+            }
+            
+            /// Get mutable reference to items
+            pub fn items_mut(&mut self) -> &mut Vec<#name> {
+                &mut self.items
+            }
+            
+            /// Check if there are more pages available
+            pub fn has_more(&self) -> bool {
+                self.has_more
+            }
+            
+            /// Get the total count of records
+            pub fn count(&self) -> i64 {
+                self.count
+            }
+            
+            /// Get the number of items in current page
+            pub fn len(&self) -> usize {
+                self.items.len()
+            }
+            
+            /// Check if the current page is empty
+            pub fn is_empty(&self) -> bool {
+                self.items.is_empty()
+            }
+        }
         
         impl std::ops::Deref for #list_name {
             type Target = Vec<#name>;
             
             fn deref(&self) -> &Self::Target {
-                &self.0
+                &self.items
             }
         }
         
         impl std::ops::DerefMut for #list_name {
             fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.0
+                &mut self.items
             }
         }
         
@@ -192,14 +262,23 @@ pub fn derive_tushare_response_list(input: TokenStream) -> TokenStream {
             type Error = tushare_api::error::TushareError;
             
             fn try_from(response: tushare_api::types::TushareResponse) -> Result<Self, Self::Error> {
-                let items = tushare_api::utils::response_to_vec::<#name>(response)?;
-                Ok(#list_name(items))
+                let items = tushare_api::utils::response_to_vec::<#name>(response.clone())?;
+                Ok(#list_name {
+                    items,
+                    has_more: response.data.has_more,
+                    count: response.data.count,
+                })
             }
         }
         
         impl From<Vec<#name>> for #list_name {
             fn from(items: Vec<#name>) -> Self {
-                #list_name(items)
+                let count = items.len() as i64;
+                #list_name {
+                    items,
+                    has_more: false,
+                    count,
+                }
             }
         }
         
@@ -208,7 +287,25 @@ pub fn derive_tushare_response_list(input: TokenStream) -> TokenStream {
             type IntoIter = std::vec::IntoIter<#name>;
             
             fn into_iter(self) -> Self::IntoIter {
-                self.0.into_iter()
+                self.items.into_iter()
+            }
+        }
+        
+        impl<'a> IntoIterator for &'a #list_name {
+            type Item = &'a #name;
+            type IntoIter = std::slice::Iter<'a, #name>;
+            
+            fn into_iter(self) -> Self::IntoIter {
+                self.items.iter()
+            }
+        }
+        
+        impl<'a> IntoIterator for &'a mut #list_name {
+            type Item = &'a mut #name;
+            type IntoIter = std::slice::IterMut<'a, #name>;
+            
+            fn into_iter(self) -> Self::IntoIter {
+                self.items.iter_mut()
             }
         }
     };
