@@ -5,6 +5,7 @@
 //! manually or automatically using the derive macro from `tushare-derive`.
 
 use crate::error::TushareError;
+use crate::types::{TushareResponse, TushareEntityList};
 use serde_json::Value;
 
 /// Trait for converting Tushare API response data into Rust structs
@@ -50,9 +51,9 @@ use serde_json::Value;
 /// For most use cases, you can use the derive macro instead of manual implementation:
 /// 
 /// ```rust
-/// use tushare_derive::{FromTushareData, TushareResponseList};
+/// use tushare_derive::FromTushareData;
 /// 
-/// #[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+/// #[derive(Debug, Clone, FromTushareData)]
 /// pub struct Stock {
 ///     ts_code: String,
 ///     name: String,
@@ -67,4 +68,32 @@ pub trait FromTushareData: Sized {
     /// * `fields` - Field names from the response
     /// * `values` - Values for this row
     fn from_row(fields: &[String], values: &[Value]) -> Result<Self, TushareError>;
+}
+
+/// Implementation of TryFrom<TushareResponse> for TushareEntityList<T>
+/// 
+/// This allows automatic conversion from API responses to typed entity lists.
+/// It extracts pagination metadata and converts each data row to the target type T.
+impl<T> TryFrom<TushareResponse> for TushareEntityList<T>
+where
+    T: FromTushareData,
+{
+    type Error = TushareError;
+    
+    fn try_from(response: TushareResponse) -> Result<Self, Self::Error> {
+        let data = response.data;
+        let mut items = Vec::new();
+        
+        // Convert each row to the target type
+        for row in &data.items {
+            let item = T::from_row(&data.fields, row)?;
+            items.push(item);
+        }
+        
+        Ok(TushareEntityList::new(
+            items,
+            data.has_more,
+            data.count,
+        ))
+    }
 }

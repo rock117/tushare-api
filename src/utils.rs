@@ -172,6 +172,8 @@ mod tests {
                         json!(null),
                     ],
                 ],
+                has_more: false,
+                count: 2,
             },
         };
 

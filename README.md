@@ -233,11 +233,11 @@ The library provides powerful procedural macros to automatically convert Tushare
 #### Using Procedural Macros
 
 ```rust
-use tushare_api::{TushareClient, Api, request};
-use tushare_derive::{FromTushareData, TushareResponseList};
+use tushare_api::{TushareClient, Api, request, TushareEntityList};
+use tushare_derive::FromTushareData;
 
 // Define your struct with automatic conversion
-#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+#[derive(Debug, Clone, FromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub symbol: String,
@@ -251,8 +251,8 @@ pub struct Stock {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = TushareClient::from_env()?;
     
-    // Method 1: Using call_api_as for direct conversion
-    let stocks: StockList = client.call_api_as(request!(Api::StockBasic, {
+    // Using call_api_as for direct conversion to TushareEntityList<Stock>
+    let stocks: TushareEntityList<Stock> = client.call_api_as(request!(Api::StockBasic, {
         "list_status" => "L",
         "exchange" => "SSE"
     }, [
@@ -277,10 +277,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #### Field Mapping and Optional Fields
 
 ```rust
-use tushare_derive::{FromTushareData, TushareResponseList};
+use tushare_api::{TushareClient, Api, request, TushareEntityList};
+use tushare_derive::FromTushareData;
 
 // Advanced struct with field mapping and optional fields
-#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+#[derive(Debug, Clone, FromTushareData)]
 pub struct StockInfo {
     pub ts_code: String,
     
@@ -299,7 +300,7 @@ pub struct StockInfo {
     pub calculated_value: f64,
 }
 
-// The macro automatically generates StockInfoList wrapper type
+// Implement Default for convenience
 impl Default for StockInfo {
     fn default() -> Self {
         Self {
@@ -317,7 +318,7 @@ impl Default for StockInfo {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = TushareClient::from_env()?;
     
-    let stock_info: StockInfoList = client.call_api_as(request!(Api::StockBasic, {
+    let stock_info: TushareEntityList<StockInfo> = client.call_api_as(request!(Api::StockBasic, {
         "list_status" => "L"
     }, [
         "ts_code", "symbol", "name", "area", "industry"
@@ -334,33 +335,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #### Generated Struct Structure
 
-When you use the `TushareResponseList` macro on a struct, it automatically generates a corresponding wrapper type. Here's what happens:
+When you use the new generic pagination container, you get a clean, type-safe interface:
 
 ```rust
 // Your original struct
-#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+#[derive(Debug, Clone, FromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub name: String,
     pub area: Option<String>,
 }
 
-// The macro automatically generates this wrapper struct:
-pub struct StockList {
-    pub items: Vec<Stock>,        // Your data items
-    pub has_more: bool,           // Pagination: more pages available?
-    pub count: i64,               // Pagination: total record count
-}
+// Use the generic TushareEntityList<T> container:
+// TushareEntityList<Stock> {
+//     pub items: Vec<Stock>,        // Your data items
+//     pub has_more: bool,           // Pagination: more pages available?
+//     pub count: i64,               // Pagination: total record count
+// }
 ```
 
 **When you call:**
 ```rust
-let stocks: StockList = client.call_api_as(request).await?;
+let stocks: TushareEntityList<Stock> = client.call_api_as(request).await?;
 // OR
-let stocks = client.call_api_as::<StockList>(request).await?;
+let stocks = client.call_api_as::<Stock>(request).await?;
 ```
 
-**You get a `StockList` struct with:**
+**You get a `TushareEntityList<Stock>` struct with:**
 - **`items`** - `Vec<Stock>` containing the actual converted data
 - **`has_more`** - `bool` indicating if there are more pages to fetch
 - **`count`** - `i64` showing the total number of records available
@@ -376,7 +377,7 @@ let stocks = client.call_api_as::<StockList>(request).await?;
 
 #### Pagination Support
 
-The `TushareResponseList` macro automatically generates wrapper types with built-in pagination support. Each generated list type (e.g., `StockList`) contains:
+The generic `TushareEntityList<T>` container provides built-in pagination support with a clean, intuitive interface:
 
 - `items: Vec<T>` - The actual data items
 - `has_more: bool` - Whether more pages are available
@@ -384,9 +385,9 @@ The `TushareResponseList` macro automatically generates wrapper types with built
 
 ```rust
 use tushare_api::{TushareClient, Api, request};
-use tushare_derive::{FromTushareData, TushareResponseList};
+use tushare_derive::FromTushareData;
 
-#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+#[derive(Debug, Clone, FromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub name: String,
@@ -398,7 +399,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = TushareClient::from_env()?;
     
     // Get paginated results
-    let stocks: StockList = client.call_api_as(request!(Api::StockBasic, {
+    let stocks: TushareEntityList<Stock> = client.call_api_as(request!(Api::StockBasic, {
         "list_status" => "L",
         "limit" => "100",
         "offset" => "0"

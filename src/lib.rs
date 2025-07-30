@@ -17,12 +17,12 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust
-//! use tushare_api::{TushareClient, Api, TushareRequest, params, fields};
-//! use tushare_derive::{FromTushareData, TushareResponseList};
+//! ```no_run
+//! use tushare_api::{TushareClient, Api, TushareRequest, TushareEntityList, params, fields};
+//! use tushare_derive::FromTushareData;
 //!
-//! // Define your data structure with derive macros
-//! #[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+//! // Define your data structure with derive macro
+//! #[derive(Debug, Clone, FromTushareData)]
 //! pub struct Stock {
 //!     ts_code: String,
 //!     symbol: String,
@@ -43,7 +43,7 @@
 //!     );
 //!     
 //!     // Make the API call with automatic conversion
-//!     let stocks: StockList = client.call_api_as(request).await?;
+//!     let stocks: TushareEntityList<Stock> = client.call_api_as(request).await?;
 //!     
 //!     println!("Received {} stocks", stocks.len());
 //!     
@@ -66,14 +66,16 @@ pub mod utils;
 // Re-export main types for convenience
 pub use error::{TushareError, TushareResult};
 pub use api::Api;
-pub use types::{TushareRequest, TushareResponse, TushareData};
+pub use types::{TushareRequest, TushareResponse, TushareData, TushareEntityList};
 pub use client::{TushareClient, HttpClientConfig};
 pub use logging::{LogConfig, LogLevel, Logger};
 pub use traits::FromTushareData;
 pub use utils::response_to_vec;
 
+// Macros are automatically exported at the crate root via #[macro_export]
+
 // Re-export procedural macros from tushare-derive
-pub use tushare_derive::{FromTushareData as DeriveFromTushareData, TushareResponseList};
+pub use tushare_derive::{FromTushareData as DeriveFromTushareData};
 
 // Re-export serde_json for user convenience
 pub use serde_json;
@@ -115,6 +117,8 @@ mod tests {
                     vec![json!("000001.SZ"), json!("平安银行")],
                     vec![json!("000002.SZ"), json!("万科A")],
                 ],
+                has_more: false,
+                count: 2,
             },
         };
         

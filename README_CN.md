@@ -212,11 +212,11 @@ let response = client.call_api(request).await?;
 #### 使用过程宏
 
 ```rust
-use tushare_api::{TushareClient, Api, request};
-use tushare_derive::{FromTushareData, TushareResponseList};
+use tushare_api::{TushareClient, Api, request, TushareEntityList};
+use tushare_derive::FromTushareData;
 
 // 使用自动转换定义您的结构体
-#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+#[derive(Debug, Clone, FromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub symbol: String,
@@ -230,8 +230,8 @@ pub struct Stock {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = TushareClient::from_env()?;
     
-    // 方法 1：使用 call_api_as 进行直接转换
-    let stocks: StockList = client.call_api_as(request!(Api::StockBasic, {
+    // 使用 call_api_as 进行直接转换到 TushareEntityList<Stock>
+    let stocks: TushareEntityList<Stock> = client.call_api_as(request!(Api::StockBasic, {
         "list_status" => "L",
         "exchange" => "SSE"
     }, [
@@ -256,10 +256,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #### 字段映射和可选字段
 
 ```rust
-use tushare_derive::{FromTushareData, TushareResponseList};
+use tushare_derive::FromTushareData;
 
 // 带字段映射和可选字段的高级结构体
-#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+#[derive(Debug, Clone, FromTushareData)]
 pub struct StockInfo {
     pub ts_code: String,
     
@@ -278,7 +278,7 @@ pub struct StockInfo {
     pub calculated_value: f64,
 }
 
-// 宏会自动生成 StockInfoList 包装类型
+// 实现 Default 以便使用
 impl Default for StockInfo {
     fn default() -> Self {
         Self {
@@ -296,7 +296,7 @@ impl Default for StockInfo {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = TushareClient::from_env()?;
     
-    let stock_info: StockInfoList = client.call_api_as(request!(Api::StockBasic, {
+    let stock_info: TushareEntityList<StockInfo> = client.call_api_as(request!(Api::StockBasic, {
         "list_status" => "L"
     }, [
         "ts_code", "symbol", "name", "area", "industry"
@@ -313,33 +313,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #### 生成的结构体说明
 
-当您在结构体上使用 `TushareResponseList` 宏时，它会自动生成对应的包装类型。具体过程如下：
+当您使用新的泛型分页容器时，您会得到一个清晰、类型安全的接口：
 
 ```rust
 // 您的原始结构体
-#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+#[derive(Debug, Clone, FromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub name: String,
     pub area: Option<String>,
 }
 
-// 宏会自动生成这个包装结构体：
-pub struct StockList {
-    pub items: Vec<Stock>,        // 您的数据项
-    pub has_more: bool,           // 分页：是否还有更多页面？
-    pub count: i64,               // 分页：总记录数
-}
+// 使用泛型 TushareEntityList<T> 容器：
+// TushareEntityList<Stock> {
+//     pub items: Vec<Stock>,        // 您的数据项
+//     pub has_more: bool,           // 分页：是否还有更多页面？
+//     pub count: i64,               // 分页：总记录数
+// }
 ```
 
 **当您调用：**
 ```rust
-let stocks: StockList = client.call_api_as(request).await?;
+let stocks: TushareEntityList<Stock> = client.call_api_as(request).await?;
 // 或者
-let stocks = client.call_api_as::<StockList>(request).await?;
+let stocks = client.call_api_as::<Stock>(request).await?;
 ```
 
-**您会得到一个 `StockList` 结构体，包含：**
+**您会得到一个 `TushareEntityList<Stock>` 结构体，包含：**
 - **`items`** - `Vec<Stock>` 包含实际转换后的数据
 - **`has_more`** - `bool` 表示是否还有更多页面可获取
 - **`count`** - `i64` 显示可用的总记录数
@@ -355,17 +355,17 @@ let stocks = client.call_api_as::<StockList>(request).await?;
 
 #### 分页支持
 
-`TushareResponseList` 宏会自动生成带有内置分页支持的包装类型。每个生成的列表类型（如 `StockList`）都包含：
+`TushareEntityList<T>` 容器提供内置分页支持，具有清晰直观的接口：
 
 - `items: Vec<T>` - 实际的数据项
 - `has_more: bool` - 是否还有更多页面可用
 - `count: i64` - 总记录数
 
 ```rust
-use tushare_api::{TushareClient, Api, request};
-use tushare_derive::{FromTushareData, TushareResponseList};
+use tushare_api::{TushareClient, Api, request, TushareEntityList};
+use tushare_derive::FromTushareData;
 
-#[derive(Debug, Clone, FromTushareData, TushareResponseList)]
+#[derive(Debug, Clone, FromTushareData)]
 pub struct Stock {
     pub ts_code: String,
     pub name: String,
@@ -377,7 +377,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = TushareClient::from_env()?;
     
     // 获取分页结果
-    let stocks: StockList = client.call_api_as(request!(Api::StockBasic, {
+    let stocks: TushareEntityList<Stock> = client.call_api_as(request!(Api::StockBasic, {
         "list_status" => "L",
         "limit" => "100",
         "offset" => "0"

@@ -2,9 +2,9 @@ use reqwest::Client;
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
 use crate::error::{TushareError, TushareResult};
+use crate::types::{TushareRequest, TushareResponse, TushareEntityList};
 use crate::api::{Api, serialize_api_name};
-use crate::types::{TushareRequest, TushareResponse};
-use crate::logging::{LogLevel, LogConfig, Logger};
+use crate::logging::{LogConfig, LogLevel, Logger};
 use serde::{Serialize};
 use serde_json;
 use uuid::Uuid;
@@ -473,14 +473,15 @@ impl TushareClient {
         Ok(tushare_response)
     }
 
-    /// Call Tushare API with automatic type conversion
+    /// Call Tushare API with automatic type conversion to TushareEntityList<T>
     /// 
-    /// This method allows you to specify the return type directly, which will be
-    /// automatically converted from TushareResponse using the TryFrom trait.
+    /// This method provides a clean, type-safe way to get paginated API responses.
+    /// You specify the entity type T, and get back a TushareEntityList<T> with
+    /// built-in pagination metadata.
     /// 
     /// # Type Parameters
     /// 
-    /// * `T` - The target type that implements `TryFrom<TushareResponse>`
+    /// * `T` - The entity type that implements `FromTushareData`
     /// 
     /// # Arguments
     /// 
@@ -488,55 +489,57 @@ impl TushareClient {
     /// 
     /// # Returns
     /// 
-    /// Returns the converted result of type T
+    /// Returns a TushareEntityList<T> containing:
+    /// - `items: Vec<T>` - The converted data items
+    /// - `has_more: bool` - Whether more pages are available
+    /// - `count: i64` - Total number of records across all pages
     /// 
     /// # Example
     /// 
     /// ```rust
-    /// use tushare_api::{TushareClient, TushareRequest, TushareResponse, TushareError, Api, request, params, fields};
-    /// use serde::Deserialize;
+    /// use tushare_api::{TushareClient, Api, request, TushareEntityList, params, fields, TushareRequest};
+    /// use tushare_derive::FromTushareData;
     /// 
-    /// // Define a custom wrapper type to avoid orphan rule violations
-    /// #[derive(Debug)]
-    /// struct StockList(Vec<StockInfo>);
-    /// 
-    /// #[derive(Debug, Deserialize)]
-    /// struct StockInfo {
-    ///     ts_code: String,
-    ///     name: String,
-    /// }
-    /// 
-    /// impl TryFrom<TushareResponse> for StockList {
-    ///     type Error = TushareError;
-    ///     
-    ///     fn try_from(response: TushareResponse) -> Result<Self, Self::Error> {
-    ///         // Convert TushareResponse to StockList
-    ///         // This is just an example - real implementation would parse the data
-    ///         Ok(StockList(vec![]))
-    ///     }
+    /// #[derive(Debug, Clone, FromTushareData)]
+    /// pub struct Stock {
+    ///     pub ts_code: String,
+    ///     pub name: String,
+    ///     pub area: Option<String>,
     /// }
     /// 
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = TushareClient::new("your_token_here");
+    ///     let client = TushareClient::from_env()?;
     ///     
-    ///     let request = request!(Api::StockBasic, {
-    ///         "list_status" => "L"
-    ///     }, [
-    ///         "ts_code", "name"
-    ///     ]);
+    ///     // Clean, intuitive API call
+    ///     let stocks: TushareEntityList<Stock> = client.call_api_as(request!(
+    ///         Api::StockBasic, {
+    ///             "list_status" => "L",
+    ///             "limit" => "100"
+    ///         }, [
+    ///             "ts_code", "name", "area"
+    ///         ]
+    ///     )).await?;
     ///     
-    ///     // Directly get the converted type
-    ///     let stocks: StockList = client.call_api_as(request).await?;
-    ///     println!("Stocks: {:?}", stocks);
+    ///     // Access pagination info
+    ///     println!("Current page: {} stocks", stocks.len());
+    ///     println!("Total available: {} stocks", stocks.count());
+    ///     println!("Has more pages: {}", stocks.has_more());
+    ///     
+    ///     // Iterate over items
+    ///     for stock in &stocks {
+    ///         println!("{}: {} ({})", 
+    ///                  stock.ts_code, 
+    ///                  stock.name, 
+    ///                  stock.area.as_deref().unwrap_or("Unknown"));
+    ///     }
     /// #   Ok(())
     /// # }
     /// ```
-    pub async fn call_api_as<T>(&self, request: TushareRequest) -> TushareResult<T>
+    pub async fn call_api_as<T>(&self, request: TushareRequest) -> TushareResult<TushareEntityList<T>>
     where
-        T: TryFrom<TushareResponse>,
-        T::Error: Into<TushareError>,
+        T: crate::traits::FromTushareData,
     {
         let response = self.call_api(request).await?;
-        T::try_from(response).map_err(|e| e.into())
+        TushareEntityList::try_from(response).map_err(Into::into)
     }
 }
