@@ -215,3 +215,74 @@ where
         ))
     }
 }
+
+/// Helper function for parsing values with custom date format (non-optional types)
+/// 
+/// This function is used by the procedural macro when a `date_format` attribute is specified.
+/// It attempts to parse the value using the custom format for supported chrono types.
+/// 
+/// # Arguments
+/// 
+/// * `value` - The JSON value to parse
+/// * `format` - The custom date format string (e.g., "%d/%m/%Y")
+/// 
+/// # Returns
+/// 
+/// Returns the parsed value of type T or an error if parsing fails.
+pub fn from_tushare_value_with_date_format<T>(
+    value: &serde_json::Value,
+    format: &str,
+) -> Result<T, crate::error::TushareError>
+where
+    T: FromTushareValueWithFormat,
+{
+    T::from_tushare_value_with_format(value, format)
+}
+
+/// Helper function for parsing optional values with custom date format
+/// 
+/// This function is used by the procedural macro when a `date_format` attribute is specified
+/// for optional fields. It handles null/empty values gracefully.
+/// 
+/// # Arguments
+/// 
+/// * `value` - The JSON value to parse (may be null)
+/// * `format` - The custom date format string (e.g., "%d/%m/%Y")
+/// 
+/// # Returns
+/// 
+/// Returns Some(parsed_value) for valid values, None for null/empty, or an error for invalid formats.
+pub fn from_optional_tushare_value_with_date_format<T>(
+    value: &serde_json::Value,
+    format: &str,
+) -> Result<Option<T>, crate::error::TushareError>
+where
+    T: FromTushareValueWithFormat,
+{
+    match value {
+        serde_json::Value::Null => Ok(None),
+        serde_json::Value::String(s) if s.is_empty() => Ok(None),
+        _ => Ok(Some(T::from_tushare_value_with_format(value, format)?)),
+    }
+}
+
+/// Trait for types that support custom date format parsing
+/// 
+/// This trait is implemented for chrono date/time types to enable
+/// custom format parsing through the `#[tushare(date_format = "...")]` attribute.
+pub trait FromTushareValueWithFormat: Sized {
+    /// Parse a value using a custom date format
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - The JSON value to parse
+    /// * `format` - The custom date format string
+    /// 
+    /// # Returns
+    /// 
+    /// Returns the parsed value or an error if parsing fails.
+    fn from_tushare_value_with_format(
+        value: &serde_json::Value,
+        format: &str,
+    ) -> Result<Self, crate::error::TushareError>;
+}

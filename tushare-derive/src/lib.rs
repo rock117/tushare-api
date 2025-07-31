@@ -11,6 +11,7 @@ use syn::{parse_macro_input, DeriveInput, Data, Fields, Type};
 /// 
 /// - `#[tushare(field = "api_field_name")]` - Maps struct field to a different API field name
 /// - `#[tushare(skip)]` - Skips this field during conversion (field must have Default implementation)
+/// - `#[tushare(date_format = "format_string")]` - Specifies custom date format for chrono date/time types
 /// 
 /// # Example
 /// 
@@ -27,6 +28,8 @@ use syn::{parse_macro_input, DeriveInput, Data, Fields, Type};
 ///     listing_date: Option<String>,
 ///     #[tushare(skip)]
 ///     calculated_field: f64,
+///     #[tushare(date_format = "%d/%m/%Y")]
+///     custom_date: chrono::NaiveDate,
 /// }
 /// ```
 #[proc_macro_derive(FromTushareData, attributes(tushare))]
@@ -49,6 +52,7 @@ pub fn derive_from_tushare_data(input: TokenStream) -> TokenStream {
         // Check for tushare attributes
         let mut api_field_name = field_name.as_ref().unwrap().to_string();
         let mut skip_field = false;
+        let mut date_format: Option<String> = None;
         
         for attr in &field.attrs {
             if attr.path().is_ident("tushare") {
@@ -73,6 +77,20 @@ pub fn derive_from_tushare_data(input: TokenStream) -> TokenStream {
                     if tokens_str.contains("skip") {
                         skip_field = true;
                     }
+                    
+                    // Parse date_format = "value" pattern
+                    if let Some(format_start) = tokens_str.find("date_format") {
+                        let after_format = &tokens_str[format_start + 11..]; // Skip "date_format"
+                        if let Some(eq_pos) = after_format.find('=') {
+                            let after_eq = &after_format[eq_pos + 1..].trim();
+                            if let Some(start_quote) = after_eq.find('"') {
+                                let after_start_quote = &after_eq[start_quote + 1..];
+                                if let Some(end_quote) = after_start_quote.find('"') {
+                                    date_format = Some(after_start_quote[..end_quote].to_string());
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -85,23 +103,47 @@ pub fn derive_from_tushare_data(input: TokenStream) -> TokenStream {
             // Generate field assignment using unified trait approach
             if is_option_type(field_type) {
                 let inner_type = extract_option_inner_type(field_type);
-                // Use FromOptionalTushareValue trait for all Option<T> types
-                quote! {
-                    #field_name: {
-                        let value = match tushare_api::utils::get_field_value(fields, values, #api_field_name) {
-                            Ok(v) => v,
-                            Err(_) => &serde_json::Value::Null,
-                        };
-                        <#inner_type as tushare_api::traits::FromOptionalTushareValue>::from_optional_tushare_value(value)?
-                    },
+                
+                if let Some(format) = date_format {
+                    // Use custom date format for optional types
+                    quote! {
+                        #field_name: {
+                            let value = match tushare_api::utils::get_field_value(fields, values, #api_field_name) {
+                                Ok(v) => v,
+                                Err(_) => &serde_json::Value::Null,
+                            };
+                            tushare_api::traits::from_optional_tushare_value_with_date_format::<#inner_type>(value, #format)?
+                        },
+                    }
+                } else {
+                    // Use FromOptionalTushareValue trait for all Option<T> types
+                    quote! {
+                        #field_name: {
+                            let value = match tushare_api::utils::get_field_value(fields, values, #api_field_name) {
+                                Ok(v) => v,
+                                Err(_) => &serde_json::Value::Null,
+                            };
+                            <#inner_type as tushare_api::traits::FromOptionalTushareValue>::from_optional_tushare_value(value)?
+                        },
+                    }
                 }
             } else {
-                // Use FromTushareValue trait for all non-optional types
-                quote! {
-                    #field_name: {
-                        let value = tushare_api::utils::get_field_value(fields, values, #api_field_name)?;
-                        <#field_type as tushare_api::traits::FromTushareValue>::from_tushare_value(value)?
-                    },
+                if let Some(format) = date_format {
+                    // Use custom date format for non-optional types
+                    quote! {
+                        #field_name: {
+                            let value = tushare_api::utils::get_field_value(fields, values, #api_field_name)?;
+                            tushare_api::traits::from_tushare_value_with_date_format::<#field_type>(value, #format)?
+                        },
+                    }
+                } else {
+                    // Use FromTushareValue trait for all non-optional types
+                    quote! {
+                        #field_name: {
+                            let value = tushare_api::utils::get_field_value(fields, values, #api_field_name)?;
+                            <#field_type as tushare_api::traits::FromTushareValue>::from_tushare_value(value)?
+                        },
+                    }
                 }
             }
         }

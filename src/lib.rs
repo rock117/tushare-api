@@ -64,6 +64,7 @@ pub mod traits;
 pub mod utils;
 pub mod basic_types;
 pub mod third_party_types;
+pub mod custom_date_format;
 
 // Re-export main types for convenience
 pub use error::{TushareError, TushareResult};
