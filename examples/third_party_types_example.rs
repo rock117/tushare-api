@@ -14,9 +14,10 @@
 //! cargo run --example third_party_types_example --features "rust_decimal,chrono"
 //! ```
 
+// Example struct using rust_decimal::Decimal (when feature is enabled)
+#[cfg(feature = "rust_decimal")]
 use tushare_api::DeriveFromTushareData;
 
-// Example struct using rust_decimal::Decimal (when feature is enabled)
 #[cfg(feature = "rust_decimal")]
 #[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct FinancialData {
@@ -39,6 +40,9 @@ pub struct FinancialData {
 
 // Example struct using bigdecimal::BigDecimal (when feature is enabled)
 #[cfg(feature = "bigdecimal")]
+use tushare_api::DeriveFromTushareData;
+
+#[cfg(feature = "bigdecimal")]
 #[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct BigDecimalData {
     #[tushare(field = "ts_code")]
@@ -53,6 +57,9 @@ pub struct BigDecimalData {
 }
 
 // Example struct using chrono date/time types (when feature is enabled)
+#[cfg(feature = "chrono")]
+use tushare_api::DeriveFromTushareData;
+
 #[cfg(feature = "chrono")]
 #[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct DateTimeData {
@@ -74,6 +81,9 @@ pub struct DateTimeData {
 
 // Example struct using uuid::Uuid (when feature is enabled)
 #[cfg(feature = "uuid")]
+use tushare_api::DeriveFromTushareData;
+
+#[cfg(feature = "uuid")]
 #[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct UuidData {
     #[tushare(field = "id")]
@@ -87,6 +97,9 @@ pub struct UuidData {
 }
 
 // Example struct combining multiple third-party types
+#[cfg(all(feature = "rust_decimal", feature = "chrono"))]
+use tushare_api::DeriveFromTushareData;
+
 #[cfg(all(feature = "rust_decimal", feature = "chrono"))]
 #[derive(Debug, Clone, DeriveFromTushareData)]
 pub struct CombinedData {
