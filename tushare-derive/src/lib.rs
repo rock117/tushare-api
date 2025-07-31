@@ -53,20 +53,25 @@ pub fn derive_from_tushare_data(input: TokenStream) -> TokenStream {
         for attr in &field.attrs {
             if attr.path().is_ident("tushare") {
                 if let Ok(meta_list) = attr.meta.require_list() {
-                    for nested in meta_list.tokens.clone().into_iter() {
-                        let nested_str = nested.to_string();
-                        if nested_str.starts_with("field") {
-                            // Extract field name from field = "name"
-                            if let Some(start) = nested_str.find('"') {
-                                if let Some(end) = nested_str.rfind('"') {
-                                    if start < end {
-                                        api_field_name = nested_str[start + 1..end].to_string();
-                                    }
+                    let tokens_str = meta_list.tokens.to_string();
+                    
+                    // Parse field = "value" pattern
+                    if let Some(field_start) = tokens_str.find("field") {
+                        let after_field = &tokens_str[field_start + 5..]; // Skip "field"
+                        if let Some(eq_pos) = after_field.find('=') {
+                            let after_eq = &after_field[eq_pos + 1..].trim();
+                            if let Some(start_quote) = after_eq.find('"') {
+                                let after_start_quote = &after_eq[start_quote + 1..];
+                                if let Some(end_quote) = after_start_quote.find('"') {
+                                    api_field_name = after_start_quote[..end_quote].to_string();
                                 }
                             }
-                        } else if nested_str == "skip" {
-                            skip_field = true;
                         }
+                    }
+                    
+                    // Check for skip attribute
+                    if tokens_str.contains("skip") {
+                        skip_field = true;
                     }
                 }
             }
@@ -77,50 +82,26 @@ pub fn derive_from_tushare_data(input: TokenStream) -> TokenStream {
                 #field_name: Default::default(),
             }
         } else {
-            // Generate field assignment based on type
+            // Generate field assignment using unified trait approach
             if is_option_type(field_type) {
                 let inner_type = extract_option_inner_type(field_type);
-                if is_string_type(&inner_type) {
-                    quote! {
-                        #field_name: tushare_api::utils::get_optional_string_field(fields, values, #api_field_name)?,
-                    }
-                } else if is_float_type(&inner_type) {
-                    quote! {
-                        #field_name: tushare_api::utils::get_optional_float_field(fields, values, #api_field_name)?,
-                    }
-                } else if is_int_type(&inner_type) {
-                    quote! {
-                        #field_name: tushare_api::utils::get_optional_int_field(fields, values, #api_field_name)?,
-                    }
-                } else if is_bool_type(&inner_type) {
-                    quote! {
-                        #field_name: tushare_api::utils::get_optional_bool_field(fields, values, #api_field_name)?,
-                    }
-                } else {
-                    quote! {
-                        #field_name: tushare_api::utils::get_optional_string_field(fields, values, #api_field_name)?,
-                    }
-                }
-            } else if is_string_type(field_type) {
+                // Use FromOptionalTushareValue trait for all Option<T> types
                 quote! {
-                    #field_name: tushare_api::utils::get_string_field(fields, values, #api_field_name)?,
-                }
-            } else if is_float_type(field_type) {
-                quote! {
-                    #field_name: tushare_api::utils::get_float_field(fields, values, #api_field_name)?,
-                }
-            } else if is_int_type(field_type) {
-                quote! {
-                    #field_name: tushare_api::utils::get_int_field(fields, values, #api_field_name)?,
-                }
-            } else if is_bool_type(field_type) {
-                quote! {
-                    #field_name: tushare_api::utils::get_bool_field(fields, values, #api_field_name)?,
+                    #field_name: {
+                        let value = match tushare_api::utils::get_field_value(fields, values, #api_field_name) {
+                            Ok(v) => v,
+                            Err(_) => &serde_json::Value::Null,
+                        };
+                        <#inner_type as tushare_api::traits::FromOptionalTushareValue>::from_optional_tushare_value(value)?
+                    },
                 }
             } else {
-                // Default to string for unknown types
+                // Use FromTushareValue trait for all non-optional types
                 quote! {
-                    #field_name: tushare_api::utils::get_string_field(fields, values, #api_field_name)?,
+                    #field_name: {
+                        let value = tushare_api::utils::get_field_value(fields, values, #api_field_name)?;
+                        <#field_type as tushare_api::traits::FromTushareValue>::from_tushare_value(value)?
+                    },
                 }
             }
         }
@@ -170,42 +151,5 @@ fn extract_option_inner_type(ty: &Type) -> Type {
     syn::parse_str("String").unwrap()
 }
 
-fn is_string_type(ty: &Type) -> bool {
-    if let Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            return segment.ident == "String" || segment.ident == "str";
-        }
-    }
-    false
-}
-
-fn is_float_type(ty: &Type) -> bool {
-    if let Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            let ident = &segment.ident;
-            return ident == "f32" || ident == "f64";
-        }
-    }
-    false
-}
-
-fn is_int_type(ty: &Type) -> bool {
-    if let Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            let ident = &segment.ident;
-            return ident == "i8" || ident == "i16" || ident == "i32" || ident == "i64" 
-                || ident == "u8" || ident == "u16" || ident == "u32" || ident == "u64"
-                || ident == "isize" || ident == "usize";
-        }
-    }
-    false
-}
-
-fn is_bool_type(ty: &Type) -> bool {
-    if let Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            return segment.ident == "bool";
-        }
-    }
-    false
-}
+// Note: Type checking functions removed since we now use unified trait calls
+// for all types through FromTushareValue and FromOptionalTushareValue

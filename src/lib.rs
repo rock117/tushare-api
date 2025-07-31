@@ -62,6 +62,7 @@ pub mod client;
 pub mod logging;
 pub mod traits;
 pub mod utils;
+pub mod basic_types;
 
 // Re-export main types for convenience
 pub use error::{TushareError, TushareResult};
@@ -69,7 +70,7 @@ pub use api::Api;
 pub use types::{TushareRequest, TushareResponse, TushareData, TushareEntityList};
 pub use client::{TushareClient, HttpClientConfig};
 pub use logging::{LogConfig, LogLevel, Logger};
-pub use traits::FromTushareData;
+pub use traits::{FromTushareData, FromTushareValue, FromOptionalTushareValue};
 pub use utils::response_to_vec;
 
 // Macros are automatically exported at the crate root via #[macro_export]
