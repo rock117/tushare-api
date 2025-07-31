@@ -2,12 +2,12 @@ use reqwest::Client;
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
 use crate::error::{TushareError, TushareResult};
+use crate::types::{TushareRequest, TushareResponse, TushareEntityList};
 use crate::api::{Api, serialize_api_name};
-use crate::types::{TushareRequest, TushareResponse};
-use crate::logging::{LogLevel, LogConfig, Logger};
+use crate::logging::{LogConfig, LogLevel, Logger};
 use serde::{Serialize};
 use serde_json;
-use uuid::Uuid;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// HTTP client configuration for reqwest::Client
 #[derive(Debug, Clone)]
@@ -20,6 +20,12 @@ pub struct HttpClientConfig {
     pub pool_max_idle_per_host: usize,
     /// Pool idle timeout duration
     pub pool_idle_timeout: Duration,
+    /// User agent string
+    pub user_agent: Option<String>,
+    /// Enable TCP_NODELAY to reduce latency
+    pub tcp_nodelay: bool,
+    /// TCP keep-alive duration
+    pub tcp_keepalive: Option<Duration>,
 }
 
 impl Default for HttpClientConfig {
@@ -27,8 +33,11 @@ impl Default for HttpClientConfig {
         Self {
             connect_timeout: Duration::from_secs(10),
             timeout: Duration::from_secs(30),
-            pool_max_idle_per_host: 10,
-            pool_idle_timeout: Duration::from_secs(30),
+            pool_max_idle_per_host: 20,  // Increased for better performance
+            pool_idle_timeout: Duration::from_secs(90),  // Longer idle timeout
+            user_agent: Some("tushare-api-rust/1.0.0".to_string()),
+            tcp_nodelay: true,  // Reduce latency
+            tcp_keepalive: Some(Duration::from_secs(60)),  // Keep connections alive
         }
     }
 }
@@ -63,14 +72,42 @@ impl HttpClientConfig {
         self
     }
     
+    /// Set user agent string
+    pub fn with_user_agent<S: Into<String>>(mut self, user_agent: S) -> Self {
+        self.user_agent = Some(user_agent.into());
+        self
+    }
+    
+    /// Enable or disable TCP_NODELAY
+    pub fn with_tcp_nodelay(mut self, enabled: bool) -> Self {
+        self.tcp_nodelay = enabled;
+        self
+    }
+    
+    /// Set TCP keep-alive duration
+    pub fn with_tcp_keepalive(mut self, duration: Option<Duration>) -> Self {
+        self.tcp_keepalive = duration;
+        self
+    }
+    
     /// Build reqwest::Client with this configuration
     pub(crate) fn build_client(&self) -> Result<Client, reqwest::Error> {
-        Client::builder()
+        let mut builder = Client::builder()
             .connect_timeout(self.connect_timeout)
             .timeout(self.timeout)
             .pool_max_idle_per_host(self.pool_max_idle_per_host)
             .pool_idle_timeout(self.pool_idle_timeout)
-            .build()
+            .tcp_nodelay(self.tcp_nodelay);
+            
+        if let Some(ref user_agent) = self.user_agent {
+            builder = builder.user_agent(user_agent);
+        }
+        
+        if let Some(keepalive) = self.tcp_keepalive {
+            builder = builder.tcp_keepalive(keepalive);
+        }
+        
+        builder.build()
     }
 }
 
@@ -347,7 +384,7 @@ impl TushareClient {
     /// # }
     /// ```
     pub async fn call_api(&self, request: TushareRequest) -> TushareResult<TushareResponse> {
-        let request_id = Uuid::new_v4().to_string();
+        let request_id = generate_request_id();
         let start_time = Instant::now();
         
         // Log API call start
@@ -435,4 +472,82 @@ impl TushareClient {
 
         Ok(tushare_response)
     }
+
+    /// Call Tushare API with automatic type conversion to TushareEntityList<T>
+    /// 
+    /// This method provides a clean, type-safe way to get paginated API responses.
+    /// You specify the entity type T, and get back a TushareEntityList<T> with
+    /// built-in pagination metadata.
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `T` - The entity type that implements `FromTushareData`
+    /// 
+    /// # Arguments
+    /// 
+    /// * `request` - API request parameters
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a TushareEntityList<T> containing:
+    /// - `items: Vec<T>` - The converted data items
+    /// - `has_more: bool` - Whether more pages are available
+    /// - `count: i64` - Total number of records across all pages
+    /// 
+    /// # Example
+    /// 
+    /// ```rust
+    /// use tushare_api::{TushareClient, Api, request, TushareEntityList, params, fields, TushareRequest, DeriveFromTushareData};
+
+    /// #[derive(Debug, Clone, DeriveFromTushareData)]
+    /// pub struct Stock {
+    ///     pub ts_code: String,
+    ///     pub name: String,
+    ///     pub area: Option<String>,
+    /// }
+    /// 
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = TushareClient::from_env()?;
+    ///     
+    ///     // Clean, intuitive API call
+    ///     let stocks: TushareEntityList<Stock> = client.call_api_as(request!(
+    ///         Api::StockBasic, {
+    ///             "list_status" => "L",
+    ///             "limit" => "100"
+    ///         }, [
+    ///             "ts_code", "name", "area"
+    ///         ]
+    ///     )).await?;
+    ///     
+    ///     // Access pagination info
+    ///     println!("Current page: {} stocks", stocks.len());
+    ///     println!("Total available: {} stocks", stocks.count());
+    ///     println!("Has more pages: {}", stocks.has_more());
+    ///     
+    ///     // Iterate over items
+    ///     for stock in &stocks {
+    ///         println!("{}: {} ({})", 
+    ///                  stock.ts_code, 
+    ///                  stock.name, 
+    ///                  stock.area.as_deref().unwrap_or("Unknown"));
+    ///     }
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub async fn call_api_as<T>(&self, request: TushareRequest) -> TushareResult<TushareEntityList<T>>
+    where
+        T: crate::traits::FromTushareData,
+    {
+        let response = self.call_api(request).await?;
+        TushareEntityList::try_from(response).map_err(Into::into)
+    }
+}
+
+/// Generate a unique request ID for logging purposes
+fn generate_request_id() -> String {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!("req_{}", timestamp)
 }

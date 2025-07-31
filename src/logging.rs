@@ -79,20 +79,24 @@ impl Logger {
         }
     }
 
-    /// Safely log messages (decides whether to record sensitive information based on configuration)
-    pub fn log_safe(&self, level: LogLevel, message: &str, sensitive_data: Option<&str>) {
+    /// Safely log messages with lazy evaluation (decides whether to record sensitive information based on configuration)
+    pub fn log_safe<F>(&self, level: LogLevel, message_fn: F, sensitive_data: Option<&str>)
+    where
+        F: FnOnce() -> String,
+    {
         if !self.should_log(&level) {
             return;
         }
 
+        let message = message_fn();
         let full_message = if self.config.log_sensitive_data {
             if let Some(sensitive) = sensitive_data {
                 format!("{} [Sensitive data: {}]", message, sensitive)
             } else {
-                message.to_string()
+                message
             }
         } else {
-            message.to_string()
+            message
         };
 
         // Choose logging backend based on compile features
@@ -119,9 +123,11 @@ impl Logger {
 
     /// Log API call start
     pub fn log_api_start(&self, request_id: &str, api_name: &str, params_count: usize, fields_count: usize) {
+        let request_id = request_id.to_string();
+        let api_name = api_name.to_string();
         self.log_safe(
             LogLevel::Info,
-            &format!(
+            move || format!(
                 "[{}] Starting Tushare API call: {}, params count: {}, fields count: {}",
                 request_id, api_name, params_count, fields_count
             ),
@@ -135,9 +141,13 @@ impl Logger {
             return;
         }
 
+        let request_id = request_id.to_string();
+        let api_name = api_name.to_string();
+        let params = params.to_string();
+        let fields = fields.to_string();
         self.log_safe(
             LogLevel::Debug,
-            &format!(
+            move || format!(
                 "[{}] API request details - API: {}, params: {}, fields: {}",
                 request_id, api_name, params, fields
             ),
@@ -147,18 +157,21 @@ impl Logger {
 
     /// Log HTTP request sending
     pub fn log_http_request(&self, request_id: &str) {
+        let request_id = request_id.to_string();
         self.log_safe(
             LogLevel::Debug,
-            &format!("[{}] Sending HTTP request to Tushare API", request_id),
+            move || format!("[{}] Sending HTTP request to Tushare API", request_id),
             None,
         );
     }
 
     /// Log HTTP request failure
     pub fn log_http_error(&self, request_id: &str, elapsed: std::time::Duration, error: &str) {
+        let request_id = request_id.to_string();
+        let error = error.to_string();
         self.log_safe(
             LogLevel::Error,
-            &format!(
+            move || format!(
                 "[{}] HTTP request failed, duration: {:?}, error: {}",
                 request_id, elapsed, error
             ),
@@ -168,18 +181,21 @@ impl Logger {
 
     /// Log HTTP response reception
     pub fn log_http_response(&self, request_id: &str, status_code: u16) {
+        let request_id = request_id.to_string();
         self.log_safe(
             LogLevel::Debug,
-            &format!("[{}] Received HTTP response, status code: {}", request_id, status_code),
+            move || format!("[{}] Received HTTP response, status code: {}", request_id, status_code),
             None,
         );
     }
 
     /// Log response reading failure
     pub fn log_response_read_error(&self, request_id: &str, elapsed: std::time::Duration, error: &str) {
+        let request_id = request_id.to_string();
+        let error = error.to_string();
         self.log_safe(
             LogLevel::Error,
-            &format!(
+            move || format!(
                 "[{}] Failed to read response content, duration: {:?}, error: {}",
                 request_id, elapsed, error
             ),
@@ -193,24 +209,28 @@ impl Logger {
             return;
         }
 
+        let request_id = request_id.to_string();
+        let response_text = response_text.to_string();
         self.log_safe(
             LogLevel::Trace,
-            &format!("[{}] Raw response content: {}", request_id, response_text),
+            move || format!("[{}] Raw response content: {}", request_id, response_text),
             None,
         );
     }
 
     /// Log JSON parsing failure
     pub fn log_json_parse_error(&self, request_id: &str, elapsed: std::time::Duration, error: &str, response_text: &str) {
+        let request_id = request_id.to_string();
+        let error = error.to_string();
         let response_preview = if self.config.log_responses {
-            response_text
+            response_text.to_string()
         } else {
-            "[Hidden]"
+            "[Hidden]".to_string()
         };
 
         self.log_safe(
             LogLevel::Error,
-            &format!(
+            move || format!(
                 "[{}] JSON parsing failed, duration: {:?}, error: {}, response content: {}",
                 request_id, elapsed, error, response_preview
             ),
@@ -220,9 +240,11 @@ impl Logger {
 
     /// Log API error
     pub fn log_api_error(&self, request_id: &str, elapsed: std::time::Duration, code: i32, message: &str) {
+        let request_id = request_id.to_string();
+        let message = message.to_string();
         self.log_safe(
             LogLevel::Error,
-            &format!(
+            move || format!(
                 "[{}] API returned error, duration: {:?}, error code: {}, error message: {}",
                 request_id, elapsed, code, message
             ),
@@ -232,10 +254,11 @@ impl Logger {
 
     /// Log API call success
     pub fn log_api_success(&self, request_id: &str, elapsed: std::time::Duration, data_count: usize) {
+        let request_id = request_id.to_string();
         if self.config.log_performance {
             self.log_safe(
                 LogLevel::Info,
-                &format!(
+                move || format!(
                     "[{}] API call successful, duration: {:?}, data rows returned: {}",
                     request_id, elapsed, data_count
                 ),
@@ -244,7 +267,7 @@ impl Logger {
         } else {
             self.log_safe(
                 LogLevel::Info,
-                &format!("[{}] API call successful", request_id),
+                move || format!("[{}] API call successful", request_id),
                 None,
             );
         }
@@ -256,9 +279,12 @@ impl Logger {
             return;
         }
 
+        let request_id = request_id.to_string();
+        let response_request_id = response_request_id.to_string();
+        let fields = fields.to_string();
         self.log_safe(
             LogLevel::Debug,
-            &format!(
+            move || format!(
                 "[{}] Response details - Request ID: {}, fields: {}",
                 request_id, response_request_id, fields
             ),

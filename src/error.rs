@@ -17,6 +17,8 @@ pub enum TushareError {
     TimeoutError,
     /// Invalid API Token
     InvalidToken,
+    /// Data parsing error
+    ParseError(String),
     /// Other errors
     Other(String),
 }
@@ -31,6 +33,7 @@ impl fmt::Display for TushareError {
             TushareError::SerializationError(err) => write!(f, "Serialization error: {err}"),
             TushareError::TimeoutError => write!(f, "Request timeout"),
             TushareError::InvalidToken => write!(f, "Invalid API Token"),
+            TushareError::ParseError(msg) => write!(f, "Parse error: {msg}"),
             TushareError::Other(msg) => write!(f, "Other error: {msg}"),
         }
     }
