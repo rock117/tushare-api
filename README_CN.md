@@ -426,6 +426,202 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `bool` - 必需的布尔值
 - `Option<bool>` - 可选的布尔值
 
+#### 自定义日期格式支持
+
+库支持使用 `#[tushare(date_format = "...")]` 属性进行自定义日期格式解析。这在处理返回非标准日期格式的 API 时特别有用。
+
+```rust
+use tushare_api::{TushareClient, Api, request, TushareEntityList, DeriveFromTushareData};
+
+#[derive(Debug, Clone, DeriveFromTushareData)]
+pub struct CustomDateFormats {
+    #[tushare(field = "ts_code")]
+    pub stock_code: String,
+    
+    // 标准日期格式（自动检测：YYYYMMDD、YYYY-MM-DD 等）
+    #[tushare(field = "trade_date")]
+    pub trade_date: chrono::NaiveDate,
+    
+    // 欧洲日期格式：DD/MM/YYYY
+    #[tushare(field = "european_date", date_format = "%d/%m/%Y")]
+    pub european_date: chrono::NaiveDate,
+    
+    // 美国日期格式：MM-DD-YYYY
+    #[tushare(field = "us_date", date_format = "%m-%d-%Y")]
+    pub us_date: chrono::NaiveDate,
+    
+    // 德国日期格式：DD.MM.YYYY
+    #[tushare(field = "german_date", date_format = "%d.%m.%Y")]
+    pub german_date: Option<chrono::NaiveDate>,
+    
+    // 自定义日期时间格式：YYYY/MM/DD HH:MM
+    #[tushare(field = "custom_datetime", date_format = "%Y/%m/%d %H:%M")]
+    pub custom_datetime: chrono::NaiveDateTime,
+    
+    // 中文日期格式：YYYY年MM月DD日
+    #[tushare(field = "chinese_date", date_format = "%Y年%m月%d日")]
+    pub chinese_date: Option<chrono::NaiveDate>,
+    
+    // UTC 日期时间格式：YYYY-MM-DD HH:MM:SS +ZZZZ
+    #[tushare(field = "utc_datetime", date_format = "%Y-%m-%d %H:%M:%S %z")]
+    pub utc_datetime: chrono::DateTime<chrono::Utc>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = TushareClient::from_env()?;
+    
+    // API 调用示例（注意：实际 API 可能不返回这些确切格式）
+    let data: TushareEntityList<CustomDateFormats> = client.call_api_as(request!(
+        Api::StockBasic, {
+            "list_status" => "L",
+            "limit" => "10"
+        }, [
+            "ts_code", "trade_date", "european_date", "us_date", 
+            "german_date", "custom_datetime", "chinese_date", "utc_datetime"
+        ]
+    )).await?;
+    
+    for record in data.iter() {
+        println!("股票: {} - 交易日期: {}", record.stock_code, record.trade_date);
+        println!("  欧洲格式: {}", record.european_date);
+        println!("  美国格式: {}", record.us_date);
+        println!("  德国格式: {:?}", record.german_date);
+        println!("  自定义日期时间: {:?}", record.custom_datetime);
+        println!("  中文格式: {:?}", record.chinese_date);
+        println!("  UTC 时间: {}", record.utc_datetime);
+        println!("---");
+    }
+    
+    Ok(())
+}
+```
+
+##### 常用日期格式模式
+
+| 格式字符串 | 示例输入 | 说明 |
+|-----------|---------|------|
+| `"%Y-%m-%d"` | `"2024-03-15"` | ISO 日期格式 |
+| `"%d/%m/%Y"` | `"15/03/2024"` | 欧洲格式 |
+| `"%m-%d-%Y"` | `"03-15-2024"` | 美国格式 |
+| `"%d.%m.%Y"` | `"15.03.2024"` | 德国格式 |
+| `"%Y年%m月%d日"` | `"2024年03月15日"` | 中文格式 |
+| `"%Y%m%d"` | `"20240315"` | 紧凑格式 |
+| `"%Y-%m-%d %H:%M:%S"` | `"2024-03-15 14:30:00"` | 日期时间格式 |
+| `"%Y/%m/%d %H:%M"` | `"2024/03/15 14:30"` | 自定义日期时间 |
+| `"%Y-%m-%d %H:%M:%S %z"` | `"2024-03-15 14:30:00 +0800"` | 带时区格式 |
+
+##### 自定义日期格式的优势
+
+- **精确控制**：为每个字段指定确切的格式
+- **无需包装类型**：直接使用 chrono 类型
+- **类型安全**：编译时格式验证
+- **灵活性**：支持可选字段
+- **清晰语法**：声明式且直观
+- **错误处理**：详细的错误信息便于调试
+
+#### 第三方类型支持
+
+库通过可选的特性标志为流行的第三方类型提供内置支持。这对于需要高精度算术或日期/时间处理的金融应用程序特别有用。
+
+##### 启用第三方类型
+
+在您的 `Cargo.toml` 中添加所需的特性：
+
+```toml
+[dependencies]
+# 启用特定类型
+tushare-api = { version = "1.1.0", features = ["rust_decimal", "chrono"] }
+
+# 或启用所有第三方类型
+tushare-api = { version = "1.1.0", features = ["all_types"] }
+```
+
+##### 高精度小数示例
+
+```rust
+use tushare_api::{TushareClient, Api, request, TushareEntityList, DeriveFromTushareData};
+
+#[derive(Debug, Clone, DeriveFromTushareData)]
+pub struct FinancialData {
+    #[tushare(field = "ts_code")]
+    pub stock_code: String,
+    
+    #[tushare(field = "trade_date")]
+    pub date: String,
+    
+    // 用于金融计算的高精度小数
+    #[tushare(field = "close")]
+    pub close_price: rust_decimal::Decimal,
+    
+    #[tushare(field = "vol")]
+    pub volume: Option<rust_decimal::Decimal>,
+    
+    #[tushare(field = "amount")]
+    pub amount: Option<rust_decimal::Decimal>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = TushareClient::from_env()?;
+    
+    let data: TushareEntityList<FinancialData> = client.call_api_as(request!(
+        Api::Daily, {
+            "ts_code" => "000001.SZ",
+            "trade_date" => "20240315"
+        }, [
+            "ts_code", "trade_date", "close", "vol", "amount"
+        ]
+    )).await?;
+    
+    for record in data.iter() {
+        println!("股票: {} - 价格: {} 日期: {}", 
+                 record.stock_code, 
+                 record.close_price, 
+                 record.date);
+    }
+    
+    Ok(())
+}
+```
+
+##### 日期/时间类型示例
+
+```rust
+use tushare_api::{TushareClient, Api, request, TushareEntityList, DeriveFromTushareData};
+
+#[derive(Debug, Clone, DeriveFromTushareData)]
+pub struct DateTimeData {
+    #[tushare(field = "ts_code")]
+    pub stock_code: String,
+    
+    // 从 YYYYMMDD 格式自动解析
+    #[tushare(field = "trade_date")]
+    pub trade_date: chrono::NaiveDate,
+    
+    // 可选的日期时间字段
+    #[tushare(field = "update_time")]
+    pub update_time: Option<chrono::NaiveDateTime>,
+    
+    // 高精度价格
+    #[tushare(field = "close")]
+    pub close_price: rust_decimal::Decimal,
+}
+```
+
+##### 支持的第三方类型
+
+| 类型 | 特性标志 | 说明 | 示例值 |
+|------|---------|------|--------|
+| `rust_decimal::Decimal` | `rust_decimal` | 高精度小数 | `"123.456"`, `123.456` |
+| `bigdecimal::BigDecimal` | `bigdecimal` | 任意精度 | `"999999999999999999999.123"` |
+| `chrono::NaiveDate` | `chrono` | 无时区日期 | `"20240315"`, `"2024-03-15"` |
+| `chrono::NaiveDateTime` | `chrono` | 无时区日期时间 | `"2024-03-15 14:30:00"` |
+| `chrono::DateTime<Utc>` | `chrono` | UTC 日期时间 | RFC3339 格式 |
+| `uuid::Uuid` | `uuid` | UUID 类型 | `"550e8400-e29b-41d4-a716-446655440000"` |
+
+详细文档和示例请参阅 [第三方类型指南](docs/THIRD_PARTY_TYPES.md)。
+
 #### 手动转换（替代方法）
 
 如果您不想使用过程宏，仍然可以使用手动方法：
@@ -701,6 +897,10 @@ cargo run --example logging_example
 # 运行 tracing 示例（需要 tracing 特性）
 cargo run --example tracing_example --features tracing
 ```
+
+## 📋 更新日志
+
+详细的变更历史、新功能和错误修复记录，请查看 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 📄 许可证
 

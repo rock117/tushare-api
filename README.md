@@ -550,6 +550,100 @@ pub struct DateTimeData {
 }
 ```
 
+#### Custom Date Format Support
+
+The library supports custom date format parsing using the `#[tushare(date_format = "...")]` attribute. This is especially useful when dealing with APIs that return dates in non-standard formats.
+
+```rust
+use tushare_api::{TushareClient, Api, request, TushareEntityList, DeriveFromTushareData};
+
+#[derive(Debug, Clone, DeriveFromTushareData)]
+pub struct CustomDateFormats {
+    #[tushare(field = "ts_code")]
+    pub stock_code: String,
+    
+    // Standard date format (auto-detected: YYYYMMDD, YYYY-MM-DD, etc.)
+    #[tushare(field = "trade_date")]
+    pub trade_date: chrono::NaiveDate,
+    
+    // European date format: DD/MM/YYYY
+    #[tushare(field = "european_date", date_format = "%d/%m/%Y")]
+    pub european_date: chrono::NaiveDate,
+    
+    // US date format: MM-DD-YYYY
+    #[tushare(field = "us_date", date_format = "%m-%d-%Y")]
+    pub us_date: chrono::NaiveDate,
+    
+    // German date format: DD.MM.YYYY
+    #[tushare(field = "german_date", date_format = "%d.%m.%Y")]
+    pub german_date: Option<chrono::NaiveDate>,
+    
+    // Custom datetime format: YYYY/MM/DD HH:MM
+    #[tushare(field = "custom_datetime", date_format = "%Y/%m/%d %H:%M")]
+    pub custom_datetime: chrono::NaiveDateTime,
+    
+    // Chinese date format: YYYY年MM月DD日
+    #[tushare(field = "chinese_date", date_format = "%Y年%m月%d日")]
+    pub chinese_date: Option<chrono::NaiveDate>,
+    
+    // UTC datetime with timezone: YYYY-MM-DD HH:MM:SS +ZZZZ
+    #[tushare(field = "utc_datetime", date_format = "%Y-%m-%d %H:%M:%S %z")]
+    pub utc_datetime: chrono::DateTime<chrono::Utc>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = TushareClient::from_env()?;
+    
+    // Example API call (note: actual API may not return these exact formats)
+    let data: TushareEntityList<CustomDateFormats> = client.call_api_as(request!(
+        Api::StockBasic, {
+            "list_status" => "L",
+            "limit" => "10"
+        }, [
+            "ts_code", "trade_date", "european_date", "us_date", 
+            "german_date", "custom_datetime", "chinese_date", "utc_datetime"
+        ]
+    )).await?;
+    
+    for record in data.iter() {
+        println!("Stock: {} - Trade Date: {}", record.stock_code, record.trade_date);
+        println!("  European: {}", record.european_date);
+        println!("  US: {}", record.us_date);
+        println!("  German: {:?}", record.german_date);
+        println!("  Custom DateTime: {:?}", record.custom_datetime);
+        println!("  Chinese: {:?}", record.chinese_date);
+        println!("  UTC: {}", record.utc_datetime);
+        println!("---");
+    }
+    
+    Ok(())
+}
+```
+
+##### Common Date Format Patterns
+
+| Format String | Example Input | Description |
+|---------------|---------------|-------------|
+| `"%Y-%m-%d"` | `"2024-03-15"` | ISO date format |
+| `"%d/%m/%Y"` | `"15/03/2024"` | European format |
+| `"%m-%d-%Y"` | `"03-15-2024"` | US format |
+| `"%d.%m.%Y"` | `"15.03.2024"` | German format |
+| `"%Y年%m月%d日"` | `"2024年03月15日"` | Chinese format |
+| `"%Y%m%d"` | `"20240315"` | Compact format |
+| `"%Y-%m-%d %H:%M:%S"` | `"2024-03-15 14:30:00"` | DateTime format |
+| `"%Y/%m/%d %H:%M"` | `"2024/03/15 14:30"` | Custom DateTime |
+| `"%Y-%m-%d %H:%M:%S %z"` | `"2024-03-15 14:30:00 +0800"` | With timezone |
+
+##### Benefits of Custom Date Formats
+
+- **Precise Control**: Specify exact format per field
+- **No Wrapper Types**: Use chrono types directly
+- **Type Safety**: Compile-time format validation
+- **Flexible**: Works with optional fields
+- **Clear Syntax**: Declarative and intuitive
+- **Error Handling**: Detailed error messages for debugging
+
 #### Supported Third-Party Types
 
 | Type | Feature Flag | Description | Example Values |
@@ -931,6 +1025,10 @@ cargo run --example logging_example
 # Run tracing integration example
 cargo run --example tracing_example --features tracing
 ```
+
+## 📋 Changelog
+
+For a detailed history of changes, new features, and bug fixes, see [CHANGELOG.md](CHANGELOG.md).
 
 ## 🤝 Contributing
 
