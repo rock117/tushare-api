@@ -23,7 +23,6 @@ reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-uuid = { version = "1.0", features = ["v4"] }
 log = "0.4"
 env_logger = "0.10"
 tushare-derive = { path = "tushare-derive" }
@@ -31,6 +30,21 @@ tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", optional = true }
 tracing-log = { version = "0.2", optional = true }
 
+# Optional third-party type support
+rust_decimal = { version = "1.0", optional = true }
+bigdecimal = { version = "0.4", optional = true }
+chrono = { version = "0.4", optional = true, features = ["serde"] }
+uuid = { version = "1.0", optional = true, features = ["v4", "serde"] }
+
 [features]
 default = []
 tracing = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-log"]
+
+# Third-party type support features
+rust_decimal = ["dep:rust_decimal"]
+bigdecimal = ["dep:bigdecimal"]
+chrono = ["dep:chrono"]
+uuid = ["dep:uuid"]
+
+# Convenience feature for all third-party types
+all_types = ["rust_decimal", "bigdecimal", "chrono", "uuid"]

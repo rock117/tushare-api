@@ -63,6 +63,7 @@ pub mod logging;
 pub mod traits;
 pub mod utils;
 pub mod basic_types;
+pub mod third_party_types;
 
 // Re-export main types for convenience
 pub use error::{TushareError, TushareResult};

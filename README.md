@@ -11,6 +11,7 @@ A comprehensive Rust client library for accessing Tushare financial data APIs. T
 - 🚀 **Async/Await Support**: Built for high-performance async operations
 - 🔒 **Type Safety**: Strongly typed API enums and comprehensive error handling
 - 🔧 **Developer Friendly**: Convenient macros and builder patterns
+- 📊 **Third-Party Type Support**: Built-in support for `rust_decimal`, `chrono`, `uuid`, and `bigdecimal`
 - 🌍 **Production Ready**: Comprehensive error handling and security features
 
 ## 📋 Requirements
@@ -24,6 +25,12 @@ Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
 tushare-api = "1.1.0"
+
+# Optional: Enable third-party type support
+# tushare-api = { version = "1.1.0", features = ["rust_decimal", "chrono"] }
+
+# Or enable all third-party types
+# tushare-api = { version = "1.1.0", features = ["all_types"] }
 
 # Optional: Enable tracing support
 # tushare-api = { version = "1.1.0", features = ["tracing"] }
@@ -431,14 +438,130 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 The procedural macros support the following Rust types:
 
+**Basic Types:**
 - `String` - Required string field
 - `Option<String>` - Optional string field
-- `f64` - Required floating-point number
-- `Option<f64>` - Optional floating-point number
-- `i64` - Required integer
-- `Option<i64>` - Optional integer
+- `f64`, `f32` - Required floating-point numbers
+- `Option<f64>`, `Option<f32>` - Optional floating-point numbers
+- `i64`, `i32`, `i16`, `i8`, `isize` - Required signed integers
+- `Option<i64>`, `Option<i32>`, etc. - Optional signed integers
+- `u64`, `u32`, `u16`, `u8`, `usize` - Required unsigned integers
+- `Option<u64>`, `Option<u32>`, etc. - Optional unsigned integers
 - `bool` - Required boolean
 - `Option<bool>` - Optional boolean
+- `char` - Required character
+- `Option<char>` - Optional character
+
+**Third-Party Types (with feature flags):**
+- `rust_decimal::Decimal` - High-precision decimal (feature: `rust_decimal`)
+- `bigdecimal::BigDecimal` - Arbitrary precision decimal (feature: `bigdecimal`)
+- `chrono::NaiveDate` - Date without timezone (feature: `chrono`)
+- `chrono::NaiveDateTime` - DateTime without timezone (feature: `chrono`)
+- `chrono::DateTime<Utc>` - UTC DateTime (feature: `chrono`)
+- `uuid::Uuid` - UUID type (feature: `uuid`)
+- All above types with `Option<T>` for optional fields
+
+### 5. Third-Party Type Support
+
+The library provides built-in support for popular third-party types through optional feature flags. This is especially useful for financial applications that require high-precision arithmetic or date/time handling.
+
+#### Enabling Third-Party Types
+
+Add the desired features to your `Cargo.toml`:
+
+```toml
+[dependencies]
+# Enable specific types
+tushare-api = { version = "1.1.0", features = ["rust_decimal", "chrono"] }
+
+# Or enable all third-party types
+tushare-api = { version = "1.1.0", features = ["all_types"] }
+```
+
+#### Example with High-Precision Decimals
+
+```rust
+use tushare_api::{TushareClient, Api, request, TushareEntityList, DeriveFromTushareData};
+
+#[derive(Debug, Clone, DeriveFromTushareData)]
+pub struct FinancialData {
+    #[tushare(field = "ts_code")]
+    pub stock_code: String,
+    
+    #[tushare(field = "trade_date")]
+    pub date: String,
+    
+    // High-precision decimal for financial calculations
+    #[tushare(field = "close")]
+    pub close_price: rust_decimal::Decimal,
+    
+    #[tushare(field = "vol")]
+    pub volume: Option<rust_decimal::Decimal>,
+    
+    #[tushare(field = "amount")]
+    pub amount: Option<rust_decimal::Decimal>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = TushareClient::from_env()?;
+    
+    let data: TushareEntityList<FinancialData> = client.call_api_as(request!(
+        Api::Daily, {
+            "ts_code" => "000001.SZ",
+            "trade_date" => "20240315"
+        }, [
+            "ts_code", "trade_date", "close", "vol", "amount"
+        ]
+    )).await?;
+    
+    for record in data.iter() {
+        println!("Stock: {} - Price: {} on {}", 
+                 record.stock_code, 
+                 record.close_price, 
+                 record.date);
+    }
+    
+    Ok(())
+}
+```
+
+#### Example with Date/Time Types
+
+```rust
+use tushare_api::{TushareClient, Api, request, TushareEntityList, DeriveFromTushareData};
+
+#[derive(Debug, Clone, DeriveFromTushareData)]
+pub struct DateTimeData {
+    #[tushare(field = "ts_code")]
+    pub stock_code: String,
+    
+    // Automatic parsing from YYYYMMDD format
+    #[tushare(field = "trade_date")]
+    pub trade_date: chrono::NaiveDate,
+    
+    // Optional datetime field
+    #[tushare(field = "update_time")]
+    pub update_time: Option<chrono::NaiveDateTime>,
+    
+    // High-precision price
+    #[tushare(field = "close")]
+    pub close_price: rust_decimal::Decimal,
+}
+```
+
+#### Supported Third-Party Types
+
+| Type | Feature Flag | Description | Example Values |
+|------|-------------|-------------|----------------|
+| `rust_decimal::Decimal` | `rust_decimal` | High-precision decimal | `"123.456"`, `123.456` |
+| `bigdecimal::BigDecimal` | `bigdecimal` | Arbitrary precision | `"999999999999999999999.123"` |
+| `chrono::NaiveDate` | `chrono` | Date without timezone | `"20240315"`, `"2024-03-15"` |
+| `chrono::NaiveDateTime` | `chrono` | DateTime without timezone | `"2024-03-15 14:30:00"` |
+| `chrono::DateTime<Utc>` | `chrono` | UTC DateTime | RFC3339 format |
+| `uuid::Uuid` | `uuid` | UUID type | `"550e8400-e29b-41d4-a716-446655440000"` |
+
+For detailed documentation and examples, see [Third-Party Types Guide](docs/THIRD_PARTY_TYPES.md).
 
 #### Manual Conversion (Alternative Approach)
 

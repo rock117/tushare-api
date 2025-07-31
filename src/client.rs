@@ -7,7 +7,7 @@ use crate::api::{Api, serialize_api_name};
 use crate::logging::{LogConfig, LogLevel, Logger};
 use serde::{Serialize};
 use serde_json;
-use uuid::Uuid;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// HTTP client configuration for reqwest::Client
 #[derive(Debug, Clone)]
@@ -384,7 +384,7 @@ impl TushareClient {
     /// # }
     /// ```
     pub async fn call_api(&self, request: TushareRequest) -> TushareResult<TushareResponse> {
-        let request_id = Uuid::new_v4().to_string();
+        let request_id = generate_request_id();
         let start_time = Instant::now();
         
         // Log API call start
@@ -541,4 +541,13 @@ impl TushareClient {
         let response = self.call_api(request).await?;
         TushareEntityList::try_from(response).map_err(Into::into)
     }
+}
+
+/// Generate a unique request ID for logging purposes
+fn generate_request_id() -> String {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!("req_{}", timestamp)
 }
