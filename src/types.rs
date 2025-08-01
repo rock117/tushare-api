@@ -217,7 +217,7 @@ impl<T> TushareEntityList<T> {
         self.items.iter_mut()
     }
     
-    /// Convert into the inner Vec<T>
+    /// Convert into the inner `Vec<T>`
     pub fn into_items(self) -> Vec<T> {
         self.items
     }

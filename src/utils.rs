@@ -5,7 +5,7 @@ use crate::types::TushareResponse;
 use crate::traits::FromTushareData;
 use serde_json::Value;
 
-/// Convert TushareResponse to Vec<T> where T implements FromTushareData
+/// Convert TushareResponse to `Vec<T>` where T implements FromTushareData
 pub fn response_to_vec<T: FromTushareData>(response: TushareResponse) -> Result<Vec<T>, TushareError> {
     let mut results = Vec::new();
     

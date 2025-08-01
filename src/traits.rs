@@ -188,7 +188,7 @@ pub trait FromTushareData: Sized {
     fn from_row(fields: &[String], values: &[Value]) -> Result<Self, TushareError>;
 }
 
-/// Implementation of TryFrom<TushareResponse> for TushareEntityList<T>
+/// Implementation of `TryFrom<TushareResponse>` for `TushareEntityList<T>`
 /// 
 /// This allows automatic conversion from API responses to typed entity lists.
 /// It extracts pagination metadata and converts each data row to the target type T.

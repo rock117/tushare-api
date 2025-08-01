@@ -473,10 +473,10 @@ impl TushareClient {
         Ok(tushare_response)
     }
 
-    /// Call Tushare API with automatic type conversion to TushareEntityList<T>
+    /// Call Tushare API with automatic type conversion to `TushareEntityList<T>`
     /// 
     /// This method provides a clean, type-safe way to get paginated API responses.
-    /// You specify the entity type T, and get back a TushareEntityList<T> with
+    /// You specify the entity type T, and get back a `TushareEntityList<T>` with
     /// built-in pagination metadata.
     /// 
     /// # Type Parameters
@@ -489,7 +489,7 @@ impl TushareClient {
     /// 
     /// # Returns
     /// 
-    /// Returns a TushareEntityList<T> containing:
+    /// Returns a `TushareEntityList<T>` containing:
     /// - `items: Vec<T>` - The converted data items
     /// - `has_more: bool` - Whether more pages are available
     /// - `count: i64` - Total number of records across all pages
