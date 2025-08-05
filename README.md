@@ -24,16 +24,16 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tushare-api = "1.1.0"
+tushare-api = "1.1.1"
 
 # Optional: Enable third-party type support
-# tushare-api = { version = "1.1.0", features = ["rust_decimal", "chrono"] }
+# tushare-api = { version = "1.1.1", features = ["rust_decimal", "chrono"] }
 
 # Or enable all third-party types
-# tushare-api = { version = "1.1.0", features = ["all_types"] }
+# tushare-api = { version = "1.1.1", features = ["all_types"] }
 
 # Optional: Enable tracing support
-# tushare-api = { version = "1.1.0", features = ["tracing"] }
+# tushare-api = { version = "1.1.1", features = ["tracing"] }
 ```
 
 ## 🚀 Quick Start
@@ -472,10 +472,10 @@ Add the desired features to your `Cargo.toml`:
 ```toml
 [dependencies]
 # Enable specific types
-tushare-api = { version = "1.1.0", features = ["rust_decimal", "chrono"] }
+tushare-api = { version = "1.1.1", features = ["rust_decimal", "chrono"] }
 
 # Or enable all third-party types
-tushare-api = { version = "1.1.0", features = ["all_types"] }
+tushare-api = { version = "1.1.1", features = ["all_types"] }
 ```
 
 #### Example with High-Precision Decimals
@@ -745,7 +745,7 @@ First, enable the tracing feature in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tushare-api = { version = "1.1.0", features = ["tracing"] }
+tushare-api = { version = "1.1.1", features = ["tracing"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 ```
@@ -777,7 +777,7 @@ If you want to use `tracing` but the library is compiled without the tracing fea
 
 ```toml
 [dependencies]
-tushare-api = "1.1.0"  # Without tracing feature
+tushare-api = "1.1.1"  # Without tracing feature
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-log = "0.2"
