@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Tushare API enum types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Api {
+    AdjFactor,
     StockBasic,
     FundBasic,
     FundDaily,
@@ -43,6 +44,7 @@ pub enum Api {
 impl Api {
     pub fn name(&self) -> String {
         match self {
+            Api::AdjFactor => "adj_factor".to_string(),
             Api::StockBasic => "stock_basic".to_string(),
             Api::FundBasic => "fund_basic".to_string(),
             Api::FundDaily => "fund_daily".to_string(),
