@@ -107,7 +107,7 @@ pub struct TushareResponse {
     pub request_id: String,
     pub code: i32,
     pub msg: Option<String>,
-    pub data: TushareData,
+    pub data: Option<TushareData>,
 }
 
 /// Tushare API data structure

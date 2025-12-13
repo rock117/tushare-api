@@ -199,9 +199,10 @@ where
     type Error = TushareError;
     
     fn try_from(response: TushareResponse) -> Result<Self, Self::Error> {
-        let data = response.data;
+        let Some(data) = response.data else {
+          return Err(TushareError::ParseError("Missing data in response".to_string()));
+        };
         let mut items = Vec::new();
-        
         // Convert each row to the target type
         for row in &data.items {
             let item = T::from_row(&data.fields, row)?;

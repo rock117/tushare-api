@@ -8,9 +8,14 @@ use serde_json::Value;
 /// Convert TushareResponse to `Vec<T>` where T implements FromTushareData
 pub fn response_to_vec<T: FromTushareData>(response: TushareResponse) -> Result<Vec<T>, TushareError> {
     let mut results = Vec::new();
-    
-    for item in response.data.items {
-        let converted = T::from_row(&response.data.fields, &item)?;
+    if response.data.is_none() {
+        return Ok(results);
+    }
+    let Some(data) = response.data else {
+        return Ok(results);
+    };
+    for item in  data.items {
+        let converted = T::from_row(&data.fields, &item)?;
         results.push(converted);
     }
     

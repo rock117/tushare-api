@@ -24,7 +24,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tushare-api = "1.1.1"
+tushare-api = "1.1.2"
 
 # Optional: Enable third-party type support
 # tushare-api = { version = "1.1.1", features = ["rust_decimal", "chrono"] }

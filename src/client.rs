@@ -452,22 +452,22 @@ impl TushareClient {
         let elapsed = start_time.elapsed();
         
         if tushare_response.code != 0 {
-            let error_msg = tushare_response.msg.clone().unwrap_or_else(|| "Unknown API error".to_string());
-            self.logger.log_api_error(&request_id, elapsed, tushare_response.code, &error_msg);
+            let message = format!("error code: {}, error msg: {}", tushare_response.code, tushare_response.msg.clone().unwrap_or_default());
+            self.logger.log_api_error(&request_id, elapsed, tushare_response.code, &message);
             return Err(TushareError::ApiError {
                 code: tushare_response.code,
-                message: error_msg,
+                message
             });
         }
 
         // Log success information and performance metrics
-        self.logger.log_api_success(&request_id, elapsed, tushare_response.data.items.len());
+        self.logger.log_api_success(&request_id, elapsed, tushare_response.data.clone().map(|data| data.items.len()).unwrap_or(0));
         
         // Log response details (if enabled)
         self.logger.log_response_details(
             &request_id,
             &tushare_response.request_id,
-            &format!("{:?}", tushare_response.data.fields)
+            &format!("{:?}", tushare_response.data.as_ref().map(|d| &d.fields))
         );
 
         Ok(tushare_response)
