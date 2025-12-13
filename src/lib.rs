@@ -126,7 +126,7 @@ mod tests {
         };
         
         assert_eq!(response.code, 0);
-        assert_eq!(response.data.map(|data| data.items.len()).unwrap_or(0), 2);
-        assert_eq!(response.data.map(|data| data.items.len()).unwrap_or(0), 2);
+        assert_eq!(response.data.as_ref().map(|data| data.items.len()).unwrap_or(0), 2);
+        assert_eq!(response.data.as_ref().map(|data| data.items.len()).unwrap_or(0), 2);
     }
 }

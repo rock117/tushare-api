@@ -35,6 +35,7 @@ pub struct LogConfig {
     pub log_requests: bool,
     /// Whether to log response content
     pub log_responses: bool,
+    pub log_responses_err: bool,
     /// Whether to log sensitive data (such as token)
     pub log_sensitive_data: bool,
     /// Whether to log performance metrics
@@ -47,6 +48,7 @@ impl Default for LogConfig {
             level: LogLevel::Info,
             log_requests: true,
             log_responses: false, // Responses can be large, not logged by default
+            log_responses_err: true,
             log_sensitive_data: false, // Sensitive data not logged by default
             log_performance: true,
         }
@@ -222,7 +224,7 @@ impl Logger {
     pub fn log_json_parse_error(&self, request_id: &str, elapsed: std::time::Duration, error: &str, response_text: &str) {
         let request_id = request_id.to_string();
         let error = error.to_string();
-        let response_preview = if self.config.log_responses {
+        let response_preview = if self.config.log_responses_err {
             response_text.to_string()
         } else {
             "[Hidden]".to_string()
