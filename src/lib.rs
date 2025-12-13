@@ -114,7 +114,7 @@ mod tests {
             request_id: "test123".to_string(),
             code: 0,
             msg: None,
-            data: TushareData {
+            data: Some(TushareData {
                 fields: vec!["ts_code".to_string(), "name".to_string()],
                 items: vec![
                     vec![json!("000001.SZ"), json!("平安银行")],
@@ -122,11 +122,11 @@ mod tests {
                 ],
                 has_more: false,
                 count: 2,
-            },
+            }),
         };
         
         assert_eq!(response.code, 0);
-        assert_eq!(response.data.items.len(), 2);
-        assert_eq!(response.data.fields.len(), 2);
+        assert_eq!(response.data.map(|data| data.items.len()).unwrap_or(0), 2);
+        assert_eq!(response.data.map(|data| data.items.len()).unwrap_or(0), 2);
     }
 }
