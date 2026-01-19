@@ -215,7 +215,7 @@ impl Logger {
         let response_text = response_text.to_string();
         self.log_safe(
             LogLevel::Trace,
-            move || format!("[{}] Raw response content: {}", request_id, response_text),
+            move || format!("[{}] Raw response content length = {}, body = {}", request_id, response_text.len(), response_text),
             None,
         );
     }

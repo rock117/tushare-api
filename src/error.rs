@@ -1,5 +1,6 @@
 use std::fmt;
 use std::error::Error as StdError;
+use std::convert::Infallible;
 
 /// Tushare API error types
 #[derive(Debug)]
@@ -62,6 +63,12 @@ impl From<reqwest::Error> for TushareError {
 impl From<serde_json::Error> for TushareError {
     fn from(err: serde_json::Error) -> Self {
         TushareError::SerializationError(err)
+    }
+}
+
+impl From<Infallible> for TushareError {
+    fn from(err: Infallible) -> Self {
+        match err {}
     }
 }
 

@@ -383,10 +383,16 @@ impl TushareClient {
     /// #   Ok(())
     /// # }
     /// ```
-    pub async fn call_api(&self, request: TushareRequest) -> TushareResult<TushareResponse> {
+    pub async fn call_api<T>(&self, request: T) -> TushareResult<TushareResponse>
+    where
+        T: TryInto<TushareRequest>,
+        <T as TryInto<TushareRequest>>::Error: Into<TushareError>,
+    {
         let request_id = generate_request_id();
         let start_time = Instant::now();
-        
+        let request = request
+            .try_into()
+            .map_err(Into::into)?;
         // Log API call start
         self.logger.log_api_start(
             &request_id,
@@ -439,7 +445,6 @@ impl TushareClient {
                 self.logger.log_response_read_error(&request_id, elapsed, &e.to_string());
                 e
             })?;
-        
         self.logger.log_raw_response(&request_id, &response_text);
         
         let tushare_response: TushareResponse = serde_json::from_str(&response_text)
@@ -534,9 +539,11 @@ impl TushareClient {
     /// #   Ok(())
     /// # }
     /// ```
-    pub async fn call_api_as<T>(&self, request: TushareRequest) -> TushareResult<TushareEntityList<T>>
+    pub async fn call_api_as<T, E>(&self, request: E) -> TushareResult<TushareEntityList<T>>
     where
         T: crate::traits::FromTushareData,
+        E: TryInto<TushareRequest>,
+        <E as TryInto<TushareRequest>>::Error: Into<TushareError>,
     {
         let response = self.call_api(request).await?;
         TushareEntityList::try_from(response).map_err(Into::into)
@@ -550,4 +557,38 @@ fn generate_request_id() -> String {
         .unwrap_or_default()
         .as_nanos();
     format!("req_{}", timestamp)
+}
+
+mod tests {
+    use crate::{fields, params, Api, TushareClient, TushareRequest};
+
+    #[tokio::test]
+    async fn test() {
+        unsafe { std::env::set_var("TUSHARE_TOKEN", "xxxx"); }
+        let client = TushareClient::from_env().unwrap();
+        let response = client.call_api(
+            r#"
+                   {
+                        "api_name": "stock_basic",
+                        "params": { "list_stauts": "L"},
+                        "fields": [ "ts_code",
+                                "symbol",
+                                "name",
+                                "area",
+                                "industry",
+                                "list_date",
+                                "exchange",
+                                "market"]
+                    }
+            "#
+        ).await.unwrap();
+        println!("resposne = {:?}", response);
+        // let parmas = params!(
+        //     "list_status" => "L",
+        //     "limit" => "100"
+        // );
+        // let req = TushareRequest::new(Api::StockBasic, parmas, fields!("ts_code"));
+        // let response = client.call_api(req).await.unwrap();
+        // println!("resposne = {:?}", response);
+    }
 }
