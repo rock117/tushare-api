@@ -136,13 +136,13 @@ impl TushareClientEx {
 
     async fn call_api_with_retry(&self, request: TushareRequest) -> TushareResult<TushareResponse> {
         let Some(cfg) = self.retry.clone() else {
-            return self.inner.call_api::<TushareRequest>(&request).await;
+            return self.inner.call_api_request(&request).await;
         };
 
         let mut attempt = 0usize;
 
         loop {
-            match self.inner.call_api::<TushareRequest>(&request).await {
+            match self.inner.call_api_request(&request).await {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
                     let should_retry = attempt < cfg.max_retries && is_retryable_error(&err);

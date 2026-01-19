@@ -112,13 +112,24 @@ impl HttpClientConfig {
 }
 
 /// Internal request structure with token included
+#[derive(Debug)]
+struct ApiNameRef<'a>(&'a Api);
+
+impl<'a> Serialize for ApiNameRef<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serialize_api_name(self.0, serializer)
+    }
+}
+
 #[derive(Debug, Serialize)]
-struct InternalTushareRequest {
-    #[serde(serialize_with = "serialize_api_name")]
-    api_name: Api,
-    token: String,
-    params: HashMap<String, String>,
-    fields: Vec<String>,
+struct InternalTushareRequest<'a> {
+    api_name: ApiNameRef<'a>,
+    token: &'a str,
+    params: &'a HashMap<String, String>,
+    fields: &'a [String],
 }
 
 /// Tushare API client
@@ -391,6 +402,14 @@ impl TushareClient {
         let request = request
             .try_into()
             .map_err(Into::into)?;
+        self.call_api_inner(&request).await
+    }
+
+    pub async fn call_api_request(&self, request: &TushareRequest) -> TushareResult<TushareResponse> {
+        self.call_api_inner(request).await
+    }
+
+    async fn call_api_inner(&self, request: &TushareRequest) -> TushareResult<TushareResponse> {
         let request_id = generate_request_id();
         let start_time = Instant::now();
         // Log API call start
@@ -417,10 +436,10 @@ impl TushareClient {
         );
         
         let internal_request = InternalTushareRequest {
-            api_name: request.api_name,
-            token: self.token.clone(),
-            params: request.params,
-            fields: request.fields,
+            api_name: ApiNameRef(&request.api_name),
+            token: &self.token,
+            params: &request.params,
+            fields: &request.fields,
         };
 
         self.logger.log_http_request(&request_id);
