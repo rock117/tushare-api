@@ -1,5 +1,5 @@
 use crate::error::{TushareError, TushareResult};
-use crate::types::{TushareRequest, TushareResponse};
+use crate::types::{TushareEntityList, TushareRequest, TushareResponse};
 use crate::{Api, TushareClient};
 use rand::Rng;
 use std::collections::HashMap;
@@ -112,10 +112,10 @@ impl TushareClientEx {
     }
 
     /// Call API with configured rate limiting (sleep) and optional retry.
-    pub async fn call_api<T>(&self, request: T) -> TushareResult<TushareResponse>
+    pub async fn call_api<T>(&self, request: &T) -> TushareResult<TushareResponse>
     where
-        T: TryInto<TushareRequest>,
-        <T as TryInto<TushareRequest>>::Error: Into<TushareError>,
+        for<'a> &'a T: TryInto<TushareRequest>,
+        for<'a> <&'a T as TryInto<TushareRequest>>::Error: Into<TushareError>,
     {
         let request = request.try_into().map_err(Into::into)?;
 
@@ -124,15 +124,25 @@ impl TushareClientEx {
         self.call_api_with_retry(request).await
     }
 
+    pub async fn call_api_as<T, R>(&self, request: &R) -> TushareResult<TushareEntityList<T>>
+    where
+        T: crate::traits::FromTushareData,
+        for<'a> &'a R: TryInto<TushareRequest>,
+        for<'a> <&'a R as TryInto<TushareRequest>>::Error: Into<TushareError>,
+    {
+        let response = self.call_api(request).await?;
+        TushareEntityList::try_from(response).map_err(Into::into)
+    }
+
     async fn call_api_with_retry(&self, request: TushareRequest) -> TushareResult<TushareResponse> {
         let Some(cfg) = self.retry.clone() else {
-            return self.inner.call_api::<TushareRequest>(request).await;
+            return self.inner.call_api::<TushareRequest>(&request).await;
         };
 
         let mut attempt = 0usize;
 
         loop {
-            match self.inner.call_api::<TushareRequest>(request.clone()).await {
+            match self.inner.call_api::<TushareRequest>(&request).await {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
                     let should_retry = attempt < cfg.max_retries && is_retryable_error(&err);

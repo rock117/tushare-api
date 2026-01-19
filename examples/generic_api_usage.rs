@@ -20,7 +20,7 @@ async fn main() -> TushareResult<()> {
     };
     
     // 调用通用 API 方法
-    let response = client.call_api(request).await?;
+    let response = client.call_api(&request).await?;
     
     println!("API 调用成功！");
     println!("请求 ID: {}", response.request_id);
@@ -45,7 +45,7 @@ async fn main() -> TushareResult<()> {
         fields: fields!["ts_code", "name", "industry", "market", "list_date"],
     };
     
-    let response = client.call_api(request).await?;
+    let response = client.call_api(&request).await?;
 
     if let Some(data) = response.data {
         if let Some(stock_data) = data.items.first() {

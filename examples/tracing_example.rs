@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("发送 API 请求（注意观察日志输出）...");
     
     // 这会触发我们库的日志输出
-    match client.call_api(request).await {
+    match client.call_api(&request).await {
         Ok(_response) => {
             println!("✅ API 调用成功（实际会因为 token 无效而失败，但能看到日志）");
         }

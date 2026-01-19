@@ -20,7 +20,7 @@ async fn main() -> TushareResult<()> {
         fields: fields!["ts_code", "name", "industry", "area"],
     };
     
-    match client.call_api(request).await {
+    match client.call_api(&request).await {
         Ok(response) => {
             if let Some(data) = response.data {
                 println!("成功获取到 {} 条记录", data.items.len());
@@ -62,7 +62,7 @@ async fn main() -> TushareResult<()> {
         ],
     };
     
-    match client_with_timeout.call_api(stock_request).await {
+    match client_with_timeout.call_api(&stock_request).await {
         Ok(response) => {
             if let Some(data) = response.data {
                 if let Some(item) = data.items.first() {

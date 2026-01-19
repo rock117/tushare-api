@@ -2,6 +2,7 @@ use crate::api::{Api, serialize_api_name};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::TushareError;
+use std::convert::Infallible;
 
 /// Tushare API request structure
 ///
@@ -12,6 +13,30 @@ pub struct TushareRequest {
     pub api_name: Api,
     pub params: HashMap<String, String>,
     pub fields: Vec<String>,
+}
+
+impl TryFrom<&TushareRequest> for TushareRequest {
+    type Error = Infallible;
+
+    fn try_from(value: &TushareRequest) -> Result<Self, Self::Error> {
+        Ok(value.clone())
+    }
+}
+
+impl TryFrom<&&str> for TushareRequest {
+    type Error = TushareError;
+
+    fn try_from(value: &&str) -> Result<Self, Self::Error> {
+        Self::try_from(*value)
+    }
+}
+
+impl TryFrom<&String> for TushareRequest {
+    type Error = TushareError;
+
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
 }
 
 impl TushareRequest {

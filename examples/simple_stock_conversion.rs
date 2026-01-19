@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Method 2: Use the traditional call_api and manual conversion
     println!("\n=== Method 2: Using call_api + manual conversion ===");
-    let response = client.call_api(request).await?;
+    let response = client.call_api(&request).await?;
     let stocks: Vec<Stock> = tushare_api::utils::response_to_vec(response)?;
     
     println!("Found {} stocks:", stocks.len());

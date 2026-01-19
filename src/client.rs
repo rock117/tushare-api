@@ -378,15 +378,15 @@ impl TushareClient {
     ///         "ts_code", "name"
     ///     ]);
     ///     
-    ///     let response = client.call_api(request).await?;
+    ///     let response = client.call_api(&request).await?;
     ///     println!("Response: {:?}", response);
     /// #   Ok(())
     /// # }
     /// ```
-    pub async fn call_api<T>(&self, request: T) -> TushareResult<TushareResponse>
+    pub async fn call_api<T>(&self, request: &T) -> TushareResult<TushareResponse>
     where
-        T: TryInto<TushareRequest>,
-        <T as TryInto<TushareRequest>>::Error: Into<TushareError>,
+        for<'a> &'a T: TryInto<TushareRequest>,
+        for<'a> <&'a T as TryInto<TushareRequest>>::Error: Into<TushareError>,
     {
         let request = request
             .try_into()
@@ -507,10 +507,10 @@ impl TushareClient {
     pub async fn call_api_as<T, R>(&self, request: R) -> TushareResult<TushareEntityList<T>>
     where
         T: crate::traits::FromTushareData,
-        R: TryInto<TushareRequest>,
-        <R as TryInto<TushareRequest>>::Error: Into<TushareError>,
+        for<'a> &'a R: TryInto<TushareRequest>,
+        for<'a> <&'a R as TryInto<TushareRequest>>::Error: Into<TushareError>,
     {
-        let response = self.call_api(request).await?;
+        let response = self.call_api(&request).await?;
         TushareEntityList::try_from(response).map_err(Into::into)
     }
  }
@@ -531,8 +531,7 @@ impl TushareClient {
     async fn test() {
         unsafe { std::env::set_var("TUSHARE_TOKEN", "xxxx"); }
         let client = TushareClient::from_env().unwrap();
-        let response = client.call_api(
-            r#"
+        let response = client.call_api(&r#"
                    {
                         "api_name": "stock_basic",
                         "params": { "list_stauts": "L"},

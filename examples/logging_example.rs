@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             fields: vec!["ts_code".to_string(), "name".to_string()],
         };
 
-        match client.call_api(req).await {
+        match client.call_api(&req).await {
             Ok(response) => {
                 if let Some(data) = response.data {
                     println!("✅ API 调用成功，返回 {} 条记录", data.items.len());
