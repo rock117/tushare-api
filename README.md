@@ -24,16 +24,16 @@
 
 ```toml
 [dependencies]
-tushare-api = "1.1.5"
+tushare-api = "1.2.5"
 
 # 可选：启用第三方类型支持
-# tushare-api = { version = "1.1.5", features = ["rust_decimal", "chrono"] }
+# tushare-api = { version = "1.2.5", features = ["rust_decimal", "chrono"] }
 
 # 或启用所有第三方类型
-# tushare-api = { version = "1.1.5", features = ["all_types"] }
+# tushare-api = { version = "1.2.5", features = ["all_types"] }
 
 # 可选：启用 tracing 支持
-# tushare-api = { version = "1.1.5", features = ["tracing"] }
+# tushare-api = { version = "1.2.5", features = ["tracing"] }
 ```
 
 ## 🚀 快速开始
@@ -594,10 +594,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```toml
 [dependencies]
 # 启用特定类型
-tushare-api = { version = "1.1.5", features = ["rust_decimal", "chrono"] }
+tushare-api = { version = "1.2.5", features = ["rust_decimal", "chrono"] }
 
 # 或启用所有第三方类型
-tushare-api = { version = "1.1.5", features = ["all_types"] }
+tushare-api = { version = "1.2.5", features = ["all_types"] }
 ```
 
 ##### 高精度小数示例
@@ -771,7 +771,7 @@ let client = TushareClient::builder()
 
 ```toml
 [dependencies]
-tushare-api = { version = "1.1.5", features = ["tracing"] }
+tushare-api = { version = "1.2.5", features = ["tracing"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 ```

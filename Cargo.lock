@@ -1636,12 +1636,13 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "tushare-api"
-version = "1.1.5"
+version = "1.2.5"
 dependencies = [
  "bigdecimal",
  "chrono",
  "env_logger",
  "log",
+ "rand",
  "reqwest",
  "rust_decimal",
  "serde",

@@ -388,11 +388,11 @@ impl TushareClient {
         T: TryInto<TushareRequest>,
         <T as TryInto<TushareRequest>>::Error: Into<TushareError>,
     {
-        let request_id = generate_request_id();
-        let start_time = Instant::now();
         let request = request
             .try_into()
             .map_err(Into::into)?;
+        let request_id = generate_request_id();
+        let start_time = Instant::now();
         // Log API call start
         self.logger.log_api_start(
             &request_id,
