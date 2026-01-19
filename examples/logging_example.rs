@@ -41,6 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         level: LogLevel::Info,
         log_requests: true,
         log_responses: false,
+        log_responses_err: true,
         log_sensitive_data: false,
         log_performance: true,
     };
@@ -78,7 +79,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match client.call_api(req).await {
             Ok(response) => {
-                println!("✅ API 调用成功，返回 {} 条记录", response.data.items.len());
+                if let Some(data) = response.data {
+                    println!("✅ API 调用成功，返回 {} 条记录", data.items.len());
+                }
             }
             Err(e) => {
                 println!("❌ API 调用失败: {}", e);

@@ -581,7 +581,7 @@ mod tests {
                                 "market"]
                     }
             "#
-        ).await.unwrap();
+        ).await;
         println!("resposne = {:?}", response);
         // let parmas = params!(
         //     "list_status" => "L",

@@ -25,13 +25,15 @@ async fn main() -> TushareResult<()> {
     println!("API 调用成功！");
     println!("请求 ID: {}", response.request_id);
     println!("返回码: {}", response.code);
-    println!("返回字段: {:?}", response.data.fields);
-    println!("数据条数: {}", response.data.items.len());
-    
-    // 显示前5条记录
-    println!("\n前5条股票记录:");
-    for (i, item) in response.data.items.iter().take(5).enumerate() {
-        println!("{}. {:?}", i + 1, item);
+    if let Some(data) = response.data {
+        println!("返回字段: {:?}", data.fields);
+        println!("数据条数: {}", data.items.len());
+        
+        // 显示前5条记录
+        println!("\n前5条股票记录:");
+        for (i, item) in data.items.iter().take(5).enumerate() {
+            println!("{}. {:?}", i + 1, item);
+        }
     }
     
     println!("\n=== 使用通用 API 方法查询特定股票 ===");
@@ -44,14 +46,16 @@ async fn main() -> TushareResult<()> {
     };
     
     let response = client.call_api(request).await?;
-    
-    if let Some(stock_data) = response.data.items.first() {
-        println!("找到股票信息:");
-        for (field, value) in response.data.fields.iter().zip(stock_data.iter()) {
-            println!("  {}: {}", field, value);
+
+    if let Some(data) = response.data {
+        if let Some(stock_data) = data.items.first() {
+            println!("找到股票信息:");
+            for (field, value) in data.fields.iter().zip(stock_data.iter()) {
+                println!("  {}: {}", field, value);
+            }
+        } else {
+            println!("未找到该股票");
         }
-    } else {
-        println!("未找到该股票");
     }
 
     Ok(())

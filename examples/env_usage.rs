@@ -29,12 +29,14 @@ async fn main() -> TushareResult<()> {
     // 调用 API
     match client.call_api(request).await {
         Ok(response) => {
-            println!("✅ 成功获取到 {} 条记录", response.data.items.len());
-            
-            // 显示前5条记录
-            println!("\n前5条股票信息:");
-            for (i, item) in response.data.items.iter().take(5).enumerate() {
-                println!("{}. {:?}", i + 1, item);
+            if let Some(data) = response.data {
+                println!("✅ 成功获取到 {} 条记录", data.items.len());
+
+                // 显示前5条记录
+                println!("\n前5条股票信息:");
+                for (i, item) in data.items.iter().take(5).enumerate() {
+                    println!("{}. {:?}", i + 1, item);
+                }
             }
         }
         Err(e) => {
@@ -60,13 +62,15 @@ async fn main() -> TushareResult<()> {
     
     match client_with_timeout.call_api(custom_request).await {
         Ok(response) => {
-            if let Some(item) = response.data.items.first() {
-                println!("✅ 找到股票信息:");
-                for (field, value) in response.data.fields.iter().zip(item.iter()) {
-                    println!("  {}: {}", field, value);
+            if let Some(data) = response.data {
+                if let Some(item) = data.items.first() {
+                    println!("✅ 找到股票信息:");
+                    for (field, value) in data.fields.iter().zip(item.iter()) {
+                        println!("  {}: {}", field, value);
+                    }
+                } else {
+                    println!("未找到该股票");
                 }
-            } else {
-                println!("未找到该股票");
             }
         }
         Err(e) => {

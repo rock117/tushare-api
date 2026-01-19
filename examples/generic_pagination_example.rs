@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         request_id: "test123".to_string(),
         code: 0,
         msg: None,
-        data: TushareData {
+        data: Some(TushareData {
             fields: vec!["ts_code".to_string(), "name".to_string(), "area".to_string()],
             items: vec![
                 vec![json!("000001.SZ"), json!("平安银行"), json!("深圳")],
@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ],
             has_more: true,
             count: 4500,
-        },
+        }),
     };
     
     // Test the new TushareEntityList conversion
