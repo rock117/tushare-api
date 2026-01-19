@@ -478,88 +478,53 @@ impl TushareClient {
         Ok(tushare_response)
     }
 
-    /// Call Tushare API with automatic type conversion to `TushareEntityList<T>`
-    /// 
-    /// This method provides a clean, type-safe way to get paginated API responses.
-    /// You specify the entity type T, and get back a `TushareEntityList<T>` with
-    /// built-in pagination metadata.
-    /// 
+    /// 调用 Tushare API，并将响应的 `data.items` 解析为强类型的 [`TushareEntityList<T>`]。
+    ///
+    /// 这是 [`Self::call_api`] 的便捷封装：先执行请求，再把响应转换为实体列表。
+    ///
     /// # Type Parameters
-    /// 
-    /// * `T` - The entity type that implements `FromTushareData`
-    /// 
-    /// # Arguments
-    /// 
-    /// * `request` - API request parameters
-    /// 
-    /// # Returns
-    /// 
-    /// Returns a `TushareEntityList<T>` containing:
-    /// - `items: Vec<T>` - The converted data items
-    /// - `has_more: bool` - Whether more pages are available
-    /// - `count: i64` - Total number of records across all pages
-    /// 
+    ///
+    /// - `T`: 单行数据对应的实体类型（需要实现 [`crate::traits::FromTushareData`]）。
+    /// - `R`: 请求类型（需要实现 `TryInto<TushareRequest>`），通常可由参数自动推导。
+    ///
+    /// # Errors
+    ///
+    /// - 请求构造失败、网络/HTTP 错误、JSON/数据映射失败等都会以 [`TushareError`] 返回。
+    ///
     /// # Example
-    /// 
+    ///
     /// ```rust
-    /// use tushare_api::{TushareClient, Api, request, TushareEntityList, params, fields, TushareRequest, DeriveFromTushareData};
-
-    /// #[derive(Debug, Clone, DeriveFromTushareData)]
-    /// pub struct Stock {
-    ///     pub ts_code: String,
-    ///     pub name: String,
-    ///     pub area: Option<String>,
-    /// }
-    /// 
+    /// # use tushare_api::{TushareClient, TushareRequest, TushareEntityList, Api, request, DeriveFromTushareData, params, fields};
+    /// # #[derive(Debug, Clone, DeriveFromTushareData)]
+    /// # struct Stock { ts_code: String }
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = TushareClient::from_env()?;
-    ///     
-    ///     // Clean, intuitive API call
-    ///     let stocks: TushareEntityList<Stock> = client.call_api_as(request!(
-    ///         Api::StockBasic, {
-    ///             "list_status" => "L",
-    ///             "limit" => "100"
-    ///         }, [
-    ///             "ts_code", "name", "area"
-    ///         ]
-    ///     )).await?;
-    ///     
-    ///     // Access pagination info
-    ///     println!("Current page: {} stocks", stocks.len());
-    ///     println!("Total available: {} stocks", stocks.count());
-    ///     println!("Has more pages: {}", stocks.has_more());
-    ///     
-    ///     // Iterate over items
-    ///     for stock in &stocks {
-    ///         println!("{}: {} ({})", 
-    ///                  stock.ts_code, 
-    ///                  stock.name, 
-    ///                  stock.area.as_deref().unwrap_or("Unknown"));
-    ///     }
-    /// #   Ok(())
-    /// # }
+    /// let client = TushareClient::from_env()?;
+    /// let stocks: TushareEntityList<Stock> = client
+    ///     .call_api_as(request!(Api::StockBasic, {}, ["ts_code"]))
+    ///     .await?;
+    /// # Ok(()) }
     /// ```
-    pub async fn call_api_as<T, E>(&self, request: E) -> TushareResult<TushareEntityList<T>>
+    pub async fn call_api_as<T, R>(&self, request: R) -> TushareResult<TushareEntityList<T>>
     where
         T: crate::traits::FromTushareData,
-        E: TryInto<TushareRequest>,
-        <E as TryInto<TushareRequest>>::Error: Into<TushareError>,
+        R: TryInto<TushareRequest>,
+        <R as TryInto<TushareRequest>>::Error: Into<TushareError>,
     {
         let response = self.call_api(request).await?;
         TushareEntityList::try_from(response).map_err(Into::into)
     }
-}
+ }
 
-/// Generate a unique request ID for logging purposes
-fn generate_request_id() -> String {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    format!("req_{}", timestamp)
-}
+ /// Generate a unique request ID for logging purposes
+ fn generate_request_id() -> String {
+     let timestamp = SystemTime::now()
+         .duration_since(UNIX_EPOCH)
+         .unwrap_or_default()
+         .as_nanos();
+     format!("req_{}", timestamp)
+ }
 
-mod tests {
+ mod tests {
     use crate::{fields, params, Api, TushareClient, TushareRequest};
 
     #[tokio::test]
