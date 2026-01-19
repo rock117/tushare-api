@@ -4,7 +4,24 @@
 [![Documentation](https://docs.rs/tushare-api/badge.svg)](https://docs.rs/tushare-api)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-一个用于访问 Tushare 金融数据 API的Rust 客户端库。该库提供类型安全的异步访问所有 Tushare 数据接口。
+一个用于访问 Tushare 金融数据 API的Rust 客户端库。该库提供类型安全的异步访问所有 Tushare 数据接口，并提供高级功能，支持对API级别进行限流和重试。
+
+## 目录
+
+- [✨ 特性](#-特性)
+- [📋 前置条件](#-前置条件)
+- [📦 安装](#-安装)
+- [🚀 快速开始](#-快速开始)
+- [📖 API 使用指南](#-api-使用指南)
+  - [1. 如何导入 Tushare API](#1-如何导入-tushare-api)
+  - [2. 如何创建 Tushare 客户端](#2-如何创建-tushare-客户端)
+  - [2.1 使用 TushareClientEx(限流、失败重试)](#21-使用-tushareclientex)
+  - [3. 如何发送请求](#3-如何发送请求)
+  - [4. 将返回的数据转换为自定义结构体](#4-将返回的数据转换为自定义结构体)
+  - [5. 如何设置日志](#5-如何设置日志)
+- [🧪 运行示例](#-运行示例)
+- [📄 许可证](#-许可证)
+- [📞 支持](#-支持)
 
 ## ✨ 特性
 
@@ -163,6 +180,47 @@ let client = TushareClient::builder()
     .build()?;
 ```
 
+### 2.1 使用 TushareClientEx
+
+`TushareClientEx` 是对 `TushareClient` 的包装，用于提供额外能力（如按 API 的最小间隔限流、失败重试等）。
+
+```rust
+use std::time::Duration;
+use tushare_api::{Api, TushareClient, TushareClientEx, TushareEntityList, request};
+use tushare_api::client_ex::RetryConfig;
+use tushare_api::DeriveFromTushareData;
+
+#[derive(Debug, Clone, DeriveFromTushareData)]
+struct Stock {
+    ts_code: String,
+    name: String,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let inner = TushareClient::from_env()?;
+
+    let client = TushareClientEx::new(inner)
+        .with_api_min_interval(Api::Daily, Duration::from_secs(10))
+        .with_retry_config(RetryConfig {
+            max_retries: 3,
+            base_delay: Duration::from_millis(200),
+            max_delay: Duration::from_secs(5),
+        });
+
+    let req = request!(Api::StockBasic, {
+        "list_status" => "L"
+    }, [
+        "ts_code", "name"
+    ]);
+
+    let stocks: TushareEntityList<Stock> = client.call_api_as(&req).await?;
+    println!("{}", stocks.len());
+
+    Ok(())
+}
+```
+
 ### 3. 如何发送请求
 
 #### 方法 1：使用便捷宏（推荐）
@@ -275,7 +333,7 @@ let json = r#"{
 let response = client.call_api(json).await?;
 ```
 
-### 4. 使用过程宏自动转换结构体
+### 4. 将返回的数据转换为自定义结构体
 
 该库提供了强大的过程宏，可以自动将 Tushare API 响应转换为强类型的 Rust 结构体，无需手动解析。
 
@@ -828,89 +886,6 @@ DEBUG [abc123] Received HTTP response, status code: 200
 INFO  [abc123] API call successful, duration: 245ms, data rows returned: 100
 ```
 
-### 6. 主要数据结构
-
-#### TushareClient
-
-与 Tushare API 交互的主要客户端。
-
-```rust
-pub struct TushareClient {
-    // 内部字段是私有的
-}
-
-impl TushareClient {
-    // 创建方法
-    pub fn new(token: &str) -> Self;
-    pub fn from_env() -> TushareResult<Self>;
-    pub fn with_timeout(token: &str, connect_timeout: Duration, timeout: Duration) -> Self;
-    pub fn from_env_with_timeout(connect_timeout: Duration, timeout: Duration) -> TushareResult<Self>;
-    pub fn builder() -> TushareClientBuilder;
-    
-    // API 调用方法
-    pub async fn call_api(&self, request: TushareRequest) -> TushareResult<TushareResponse>;
-    pub async fn call_api_as<T>(&self, request: TushareRequest) -> TushareResult<T>
-    where
-        T: TryFrom<TushareResponse, Error = TushareError>;
-}
-```
-
-#### TushareRequest
-
-表示带参数和字段规范的 API 请求。
-
-```rust
-#[derive(Debug, Clone)]
-pub struct TushareRequest {
-    pub api_name: Api,                    // 要调用的 API
-    pub params: HashMap<String, String>,  // 请求参数
-    pub fields: Vec<String>,              // 要返回的字段
-}
-```
-
-#### TushareResponse
-
-表示来自 Tushare API 的响应。
-
-```rust
-#[derive(Debug)]
-pub struct TushareResponse {
-    pub request_id: String,  // 唯一请求标识符
-    pub code: i32,          // 响应代码（0 = 成功）
-    pub msg: String,        // 响应消息
-    pub data: TushareData,  // 实际数据
-}
-```
-
-#### TushareData
-
-包含 API 返回的实际数据。
-
-```rust
-#[derive(Debug)]
-pub struct TushareData {
-    pub fields: Vec<String>,     // 字段名
-    pub items: Vec<Vec<String>>, // 数据行
-}
-```
-
-#### Api 枚举
-
-所有支持的 API 的强类型枚举。
-
-```rust
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Api {
-    StockBasic,     // 基础股票信息
-    Daily,          // 日线数据
-    TradeCal,       // 交易日历
-    FundBasic,      // 基金基础信息
-    IndexBasic,     // 指数基础信息
-    // ... 更多 API
-    Custom(String), // 按名称的任何其他 API
-}
-```
- 
 ## 🧪 运行示例
 
 ```bash
