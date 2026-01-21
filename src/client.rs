@@ -245,6 +245,10 @@ impl TushareClient {
         TushareClientBuilder::new()
     }
 
+    pub(crate) fn logger(&self) -> &Logger {
+        &self.logger
+    }
+
 
 
     /// Create a new Tushare client with default timeout settings

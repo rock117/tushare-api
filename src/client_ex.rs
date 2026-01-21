@@ -140,6 +140,7 @@ impl TushareClientEx {
         };
 
         let mut attempt = 0usize;
+        let api_name = request.api_name.name();
 
         loop {
             match self.inner.call_api_request(&request).await {
@@ -147,10 +148,34 @@ impl TushareClientEx {
                 Err(err) => {
                     let should_retry = attempt < cfg.max_retries && is_retryable_error(&err);
                     if !should_retry {
+                        self.inner.logger().log_safe(
+                            crate::logging::LogLevel::Error,
+                            || {
+                                format!(
+                                    "tushare_api retry exhausted or non-retryable error; api={}, attempts={}, max_retries={}, err={}",
+                                    api_name, attempt, cfg.max_retries, err
+                                )
+                            },
+                            None,
+                        );
                         return Err(err);
                     }
 
                     let delay = compute_backoff_delay(&cfg, attempt);
+                    self.inner.logger().log_safe(
+                        crate::logging::LogLevel::Warn,
+                        || {
+                            format!(
+                                "tushare_api retrying; api={}, retry={}/{}, delay={:?}, err={}",
+                                api_name,
+                                attempt + 1,
+                                cfg.max_retries,
+                                delay,
+                                err
+                            )
+                        },
+                        None,
+                    );
                     sleep(delay).await;
                     attempt += 1;
                 }
