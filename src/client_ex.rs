@@ -140,10 +140,15 @@ impl TushareClientEx {
         };
 
         let mut attempt = 0usize;
+        let request_id = crate::client::generate_request_id();
         let api_name = request.api_name.name();
 
         loop {
-            match self.inner.call_api_request(&request).await {
+            match self
+                .inner
+                .call_api_request_with_request_id(&request_id, &request)
+                .await
+            {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
                     let should_retry = attempt < cfg.max_retries && is_retryable_error(&err);
@@ -152,8 +157,8 @@ impl TushareClientEx {
                             crate::logging::LogLevel::Error,
                             || {
                                 format!(
-                                    "tushare_api retry exhausted or non-retryable error; api={}, attempts={}, max_retries={}, err={}",
-                                    api_name, attempt, cfg.max_retries, err
+                                    "[{}] tushare_api retry exhausted or non-retryable error; api={}, attempts={}, max_retries={}, err={}",
+                                    request_id, api_name, attempt, cfg.max_retries, err
                                 )
                             },
                             None,
@@ -166,7 +171,8 @@ impl TushareClientEx {
                         crate::logging::LogLevel::Warn,
                         || {
                             format!(
-                                "tushare_api retrying; api={}, retry={}/{}, delay={:?}, err={}",
+                                "[{}] tushare_api retrying; api={}, retry={}/{}, delay={:?}, err={}",
+                                request_id,
                                 api_name,
                                 attempt + 1,
                                 cfg.max_retries,

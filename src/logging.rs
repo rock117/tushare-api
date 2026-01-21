@@ -233,8 +233,8 @@ impl Logger {
         self.log_safe(
             LogLevel::Error,
             move || format!(
-                "[{}] JSON parsing failed, duration: {:?}, error: {}, response content: {}",
-                request_id, elapsed, error, response_preview
+                "[{}] JSON parsing failed, duration: {:?}, error: {}, response content length: {}, response content: {}",
+                request_id, elapsed, error, response_preview.len(), response_preview
             ),
             None,
         );

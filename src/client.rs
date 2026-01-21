@@ -406,15 +406,28 @@ impl TushareClient {
         let request = request
             .try_into()
             .map_err(Into::into)?;
-        self.call_api_inner(&request).await
-    }
-
-    pub async fn call_api_request(&self, request: &TushareRequest) -> TushareResult<TushareResponse> {
-        self.call_api_inner(request).await
-    }
-
-    async fn call_api_inner(&self, request: &TushareRequest) -> TushareResult<TushareResponse> {
         let request_id = generate_request_id();
+        self.call_api_inner_with_request_id(&request_id, &request).await
+    }
+
+    pub(crate) async fn call_api_request(&self, request: &TushareRequest) -> TushareResult<TushareResponse> {
+        let request_id = generate_request_id();
+        self.call_api_inner_with_request_id(&request_id, request).await
+    }
+
+    pub(crate) async fn call_api_request_with_request_id(
+        &self,
+        request_id: &str,
+        request: &TushareRequest,
+    ) -> TushareResult<TushareResponse> {
+        self.call_api_inner_with_request_id(request_id, request).await
+    }
+
+    async fn call_api_inner_with_request_id(
+        &self,
+        request_id: &str,
+        request: &TushareRequest,
+    ) -> TushareResult<TushareResponse> {
         let start_time = Instant::now();
         // Log API call start
         self.logger.log_api_start(
@@ -539,13 +552,13 @@ impl TushareClient {
  }
 
  /// Generate a unique request ID for logging purposes
- fn generate_request_id() -> String {
-     let timestamp = SystemTime::now()
-         .duration_since(UNIX_EPOCH)
-         .unwrap_or_default()
-         .as_nanos();
-     format!("req_{}", timestamp)
- }
+pub(crate) fn generate_request_id() -> String {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!("req_{}", timestamp)
+}
 
  mod tests {
     use crate::{fields, params, Api, TushareClient, TushareRequest};
